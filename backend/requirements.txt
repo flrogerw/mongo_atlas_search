@@ -1,0 +1,8 @@
+flask
+opensearch-py==2.3.2
+beautifulsoup4
+huggingface-hub==0.14.1
+nltk==3.8.1
+sentence-transformers==2.2.2
+transformers==4.28.1
+html5lib==1.1

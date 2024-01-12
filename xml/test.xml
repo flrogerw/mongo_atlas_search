@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	 xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:anchor="https://anchor.fm/xmlns"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://anchor.fm/xmlns ">
+	<channel>
+		<title><![CDATA[קבוצות מיעוט וקבוצות מוחלשות בשילוב המסגרת החינוכית - ספיר, עדי, סופי, שני, אוראל]]></title>
+		<description><![CDATA[שילוב של ילדים מקבוצות מיעוט ושילובם במסגרת ומערכת החינוך בכלל ובגני הילדים בפרט
+]]></description>
+		<link>https://podcasters.spotify.com/pod/show/sofia-goginashvili</link>
+		<image>
+			<url>
+				https://d3t3ozftmdmh3i.cloudfront.net/production/podcast_uploaded/2978357/2978357-1580580352663-5de776406e3ef.jpg
+			</url>
+			<title>קבוצות מיעוט וקבוצות מוחלשות בשילוב המסגרת החינוכית - ספיר, עדי, סופי, שני, אוראל</title>
+			<link>https://podcasters.spotify.com/pod/show/sofia-goginashvili</link>
+		</image>
+		<generator>Anchor Podcasts</generator>
+		<lastBuildDate>Tue, 28 Mar 2023 15:41:26 GMT</lastBuildDate>
+		<atom:link href="https://anchor.fm/s/12593334/podcast/rss" rel="self" type="application/rss+xml"/>
+		<author><![CDATA[Sofia Gogonashvili]]></author>
+		<copyright><![CDATA[Sofia Gogonashvili]]></copyright>
+		<language><![CDATA[iw]]></language>
+		<atom:link rel="hub" href="https://pubsubhubbub.appspot.com/"/>
+		<itunes:author>Sofia Gogonashvili</itunes:author>
+		<itunes:summary>שילוב של ילדים מקבוצות מיעוט ושילובם במסגרת ומערכת החינוך בכלל ובגני הילדים בפרט
+		</itunes:summary>
+		<itunes:type>episodic</itunes:type>
+		<itunes:owner>
+			<itunes:name>Sofia Gogonashvili</itunes:name>
+			<itunes:email>podcasts49+12593334@anchor.fm</itunes:email>
+		</itunes:owner>
+		<itunes:explicit>No</itunes:explicit>
+		<itunes:category text="Education"/>
+		<itunes:image
+				href="https://d3t3ozftmdmh3i.cloudfront.net/production/podcast_uploaded/2978357/2978357-1580580352663-5de776406e3ef.jpg"/>
+		<item>
+			<title><![CDATA[קבוצות מיעוט וקבוצות מוחלשות בשילוב המסגרת החינוכית]]></title>
+			<description><![CDATA[:)
+]]></description>
+			<link>https://podcasters.spotify.com/pod/show/sofia-goginashvili/episodes/ep-eabhvv</link>
+			<guid isPermaLink="false">0cc3ed0a-eb0d-444d-8e0c-3e5c68695ed1</guid>
+			<dc:creator><![CDATA[Sofia Gogonashvili]]></dc:creator>
+			<pubDate>Sat, 01 Feb 2020 17:58:09 GMT</pubDate>
+			<enclosure
+					url="https://anchor.fm/s/12593334/podcast/play/9864639/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2020-02-01%2Fa1a0f025366ddbe80ad0efc41de955e5.m4a"
+					length="14271382" type="audio/x-m4a"/>
+			<itunes:summary>:)
+			</itunes:summary>
+			<itunes:explicit>No</itunes:explicit>
+			<itunes:duration>00:14:42</itunes:duration>
+			<itunes:image
+					href="https://d3t3ozftmdmh3i.cloudfront.net/production/podcast_uploaded/2978357/2978357-1580580352663-5de776406e3ef.jpg"/>
+			<itunes:episodeType>full</itunes:episodeType>
+		</item>
+	</channel>
+</rss>

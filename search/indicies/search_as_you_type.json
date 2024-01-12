@@ -1,0 +1,9 @@
+{
+  "mappings": {
+    "properties": {
+      "search_query": {
+        "type": "search_as_you_type"
+      }
+    }
+  }
+}
