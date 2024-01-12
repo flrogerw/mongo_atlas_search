@@ -98,8 +98,9 @@ def monitor(id, stop):
             flush_queues(logger)
             if stop():
                 break
-            print('Completed {} records out of {} total records in {}'.format(record_count - jobs.qsize(), record_count,
-                                                                              datetime.now() - start_time), flush=True)
+            print('Completed: {} records, Remaining: {} Total Elapsed Time: {}'.format(record_count - jobs.qsize(),
+                                                                                record_count - (record_count - jobs.qsize()),datetime.now() - start_time),
+                  flush=True)
     except Exception:
         raise
 
@@ -133,6 +134,7 @@ if __name__ == '__main__':
 
         for thread in threads:
             thread.join()
+
         print('All Threads have Finished')
         flush_queues(Db())
 
