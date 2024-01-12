@@ -201,8 +201,8 @@ class RssWorker(threading.Thread):
                                  .format(task['feedFilePath'],
                                          self.redis.get(str(uuid.uuid5(self.namespace, str(xml))))))
 
-            if self.fetcher == 'listen_notes':
-                self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
+            #if self.fetcher == 'listen_notes':
+                #self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
 
             # Filter out unsupported languages

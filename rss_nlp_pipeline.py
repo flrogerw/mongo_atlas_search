@@ -94,12 +94,12 @@ def monitor(id, stop):
         logger = Db()
         start_time = datetime.now()
         while True:
-            time.sleep(3)
+            time.sleep(10)
             flush_queues(logger)
             if stop():
                 break
-            print('Duration:', datetime.now() - start_time, 'Total Processed:', record_count, 'Job Queue:', jobs.qsize(), 'Good Queue:',
-                  good_queue.qsize(), flush=True)
+            print('Completed {} records out of {} total records in {}'.format(record_count - jobs.qsize(), record_count,
+                                                                              datetime.now() - start_time), flush=True)
     except Exception:
         raise
 
