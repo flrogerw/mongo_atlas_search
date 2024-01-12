@@ -1,3 +1,4 @@
+from urllib3 import Retry, PoolManager, Timeout
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -19,6 +20,9 @@ from nlp.Grader import Grader
 load_dotenv()
 threadLock = threading.Lock()
 xmlschema = etree.XMLSchema(etree.parse('xsd/rss.xsd'))
+timeout = Timeout(connect=2.0, read=2.0)
+retries = Retry(connect=0, read=2, redirect=5)
+http = PoolManager(retries=retries, timeout=timeout)
 
 # Load System ENV VARS
 FIELD_FOR_READABILITY = os.getenv('FIELD_FOR_READABILITY')
@@ -82,8 +86,8 @@ class RssWorker(threading.Thread):
     @staticmethod
     def get_from_web(file_path):
         try:
-            rss = requests.get(file_path)
-            return rss.text.encode()
+            rss = http.request("GET", file_path)
+            return rss.data
         except Exception:
             raise
 
@@ -191,7 +195,7 @@ class RssWorker(threading.Thread):
             elif self.fetcher == 'listen_notes':
                 xml = self.get_from_web(task['feedFilePath'])
                 response['file_name'] = str(uuid.uuid5(self.namespace, str(xml))) + '.rss.xml'
-                root = etree.fromstring(xml)
+                root = etree.XML(xml)
 
             # Check for Duplicates
             if self.redis.get(str(uuid.uuid5(self.namespace, str(xml)))) is None:
