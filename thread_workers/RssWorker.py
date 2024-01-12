@@ -68,7 +68,8 @@ class RssWorker(threading.Thread):
     def run(self):
         while True:
             try:
-                task = self.job_queue.get(timeout=5)
+                with self.job_queue.mutex:
+                    task = self.job_queue.get(timeout=5)
                 self.process(task)
             except queue.Empty:
                 return
