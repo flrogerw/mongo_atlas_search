@@ -221,6 +221,13 @@ class RssWorker(threading.Thread):
             self.validate(root)
             channel = root.find(".//channel")
 
+            # Set some basic values
+            response['podcast_url'] = root.find(".//link").text
+            response['index_status'] = 310
+            response['episode_count'] = len(list(root.iter("item")))
+            # ADD coherence test and use chatagpt if fails
+            response['description_selected'] = 0
+
             # Populate nice to have variables
             for field in NICE_TO_HAVE:
                 if channel.find(".//" + field) is not None:
@@ -262,13 +269,6 @@ class RssWorker(threading.Thread):
             # English Only Functions
             if response['language'] == 'en':
                 response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
-
-            # Set some basic values
-            response['podcast_url'] = root.find(".//link").text
-            response['index_status'] = 310
-            response['episode_count'] = len(list(root.iter("item")))
-            # ADD coherence test and use chatagpt if fails
-            response['description_selected'] = 0
 
             # Post response in the completed queue.
             self.complete_queue.put(response)
