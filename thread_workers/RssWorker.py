@@ -105,8 +105,8 @@ class RssWorker(threading.Thread):
                 {
                     "file_name": response['file_name'],
                     "reason_for_failure": error,
-                    "title_cleaned": title.text if len(title) else 'N/A',
-                    "author": author.text if len(author) else 'N/A',
+                    "title_cleaned": title.text if len(title.text) else 'N/A',
+                    "author": author.text if len(author.text) else 'N/A',
                     "index_status": 320
                 })
         except Exception:
