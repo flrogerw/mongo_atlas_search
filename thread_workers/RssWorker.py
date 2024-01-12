@@ -99,6 +99,7 @@ class RssWorker(threading.Thread):
     def log_failure_record(self, response, xml, error):
         try:
             title = xml.find(".//channel/title")
+            description = xml.find(".//channel/description")
             author = xml.find(".//channel/author")
 
             self.purgatory_queue.put(
@@ -106,6 +107,7 @@ class RssWorker(threading.Thread):
                     "file_name": response['file_name'],
                     "reason_for_failure": error,
                     "title_cleaned": title.text if len(title.text) else 'N/A',
+                    "description_cleaned": description.text if len(description.text) else 'N/A',
                     "author": author.text if len(author.text) else 'N/A',
                     "index_status": 320
                 })
