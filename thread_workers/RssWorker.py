@@ -88,7 +88,7 @@ class RssWorker(threading.Thread):
     @staticmethod
     def get_from_web(file_path):
         try:
-            rss = requests.get(file_path, timeout=1.0)
+            rss = requests.get(file_path, timeout=2.0)
             return rss.text.encode()
         except Exception:
             raise
