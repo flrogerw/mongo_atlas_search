@@ -213,7 +213,8 @@ class RssWorker(threading.Thread):
 
 
             # Filter out unsupported languages
-            language = root.find(".//language").text.lower().split('-')[0]
+
+            language = root.find(".//language").text.lower().split('-')[0] if root.find(".//language") is not None else None
             if language is None:
                 language_tuple = self.get_language
                 if language_tuple[0] in LANGUAGES and language_tuple[1] > float(MIN_LANGUAGE_TOLERANCE):
