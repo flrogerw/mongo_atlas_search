@@ -64,22 +64,22 @@ def flush_queues(logger):
         if not good_queue.empty():
             good_list = list(good_queue.queue)
             good_queue.queue.clear()
-        logger.insert_many('podcast_active', good_list)
+            logger.insert_many('podcast_active', good_list)
 
         if not purgatory_queue.empty():
             purgatory_list = list(purgatory_queue.queue)
             purgatory_queue.queue.clear()
-        logger.insert_many('podcast_purgatory', purgatory_list)
+            logger.insert_many('podcast_purgatory', purgatory_list)
 
         if not bad_queue.empty():
             bad_list = list(bad_queue.queue)
             bad_queue.queue.clear()
-        logger.insert_many('error_log', bad_list)
+            logger.insert_many('error_log', bad_list)
 
         if not quarantine_queue.empty():
             quarantine_list = list(bad_queue.queue)
             quarantine_queue.queue.clear()
-        logger.insert_many('quarantine', quarantine_list)
+            logger.insert_many('quarantine', quarantine_list)
 
 
 def monitor(id, stop):

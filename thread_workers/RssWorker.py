@@ -1,4 +1,4 @@
-from urllib3 import Retry, PoolManager, Timeout
+from urllib3 import Retry, HTTPConnectionPool, Timeout
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -22,7 +22,7 @@ threadLock = threading.Lock()
 xmlschema = etree.XMLSchema(etree.parse('xsd/rss.xsd'))
 timeout = Timeout(connect=2.0, read=2.0)
 retries = Retry(connect=0, read=2, redirect=5)
-http = PoolManager(retries=retries, timeout=timeout)
+http = HTTPConnectionPool('localhost', retries=retries, timeout=timeout)
 
 # Load System ENV VARS
 FIELD_FOR_READABILITY = os.getenv('FIELD_FOR_READABILITY')
@@ -88,8 +88,8 @@ class RssWorker(threading.Thread):
     @staticmethod
     def get_from_web(file_path):
         try:
-            rss = http.request("GET", file_path)
-            return rss.data
+            rss = requests.get(file_path, timeout=0.5)
+            return rss.text.encode()
         except Exception:
             raise
 
@@ -108,9 +108,9 @@ class RssWorker(threading.Thread):
                     {
                         "file_name": response['file_name'],
                         "reason_for_failure": error,
-                        "title_cleaned": title.text if len(title.text) else 'N/A',
-                        "description_cleaned": description.text if len(description.text) else 'N/A',
-                        "author": author.text if len(author.text) else 'N/A',
+                        "title_cleaned": title.text if title is not None else 'N/A',
+                        "description_cleaned": description.text if description is not None else 'N/A',
+                        "author": author.text if author is not None else 'N/A',
                         "index_status": 320
                     })
         except Exception:
@@ -182,7 +182,6 @@ class RssWorker(threading.Thread):
         try:
             for item in root.iter("item"):
                 epidose_id = str(uuid.uuid5(self.namespace, str(item)))
-                item = item.find("{itunes}keywords")
                 if item is not None:
                     print(item.text)
         except Exception:
