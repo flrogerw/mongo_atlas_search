@@ -60,32 +60,25 @@ purgatory_queue = queue.Queue()
 
 
 def flush_queues(logger):
-    if not good_queue.empty():
-        with threadLock:
+    with threadLock:
+        if not good_queue.empty():
             good_list = list(good_queue.queue)
-            with good_queue.mutex:
-                good_queue.queue.clear()
+            good_queue.queue.clear()
         logger.insert_many('podcast_active', good_list)
 
-    if not purgatory_queue.empty():
-        with threadLock:
+        if not purgatory_queue.empty():
             purgatory_list = list(purgatory_queue.queue)
-            with purgatory_queue.mutex:
-                purgatory_queue.queue.clear()
+            purgatory_queue.queue.clear()
         logger.insert_many('podcast_purgatory', purgatory_list)
 
-    if not bad_queue.empty():
-        with threadLock:
+        if not bad_queue.empty():
             bad_list = list(bad_queue.queue)
-            with bad_queue.mutex:
-                bad_queue.queue.clear()
+            bad_queue.queue.clear()
         logger.insert_many('error_log', bad_list)
 
-    if not quarantine_queue.empty():
-        with threadLock:
+        if not quarantine_queue.empty():
             quarantine_list = list(bad_queue.queue)
-            with quarantine_queue.mutex:
-                quarantine_queue.queue.clear()
+            quarantine_queue.queue.clear()
         logger.insert_many('quarantine', quarantine_list)
 
 
@@ -94,12 +87,15 @@ def monitor(id, stop):
         logger = Db()
         start_time = datetime.now()
         while True:
-            time.sleep(3)
+            time.sleep(10)
             flush_queues(logger)
             if stop():
                 break
-            print('Duration:', datetime.now() - start_time, 'Total Processed:', record_count, 'Job Queue:', jobs.qsize(), 'Good Queue:',
-                  good_queue.qsize(), flush=True)
+            print('Completed: {} records, Remaining: {} Total Elapsed Time: {}'.format(record_count - jobs.qsize(),
+                                                                                       record_count - (
+                                                                                                   record_count - jobs.qsize()),
+                                                                                       datetime.now() - start_time),
+                  flush=True)
     except Exception:
         raise
 
@@ -112,7 +108,7 @@ if __name__ == '__main__':
         threads = []
         for i in range(THREAD_COUNT):
             w = RssWorker(jobs, good_queue, bad_queue, quarantine_queue, purgatory_queue, nlp, profanity, model,
-                          fetcher_type)
+                          fetcher_type, threadLock)
             # w.daemon = True
             w.start()
             threads.append(w)
@@ -133,12 +129,13 @@ if __name__ == '__main__':
 
         for thread in threads:
             thread.join()
+
         print('All Threads have Finished')
         flush_queues(Db())
-
         stop_monitor = True
 
     except Exception as err:
         # print(err)
-        bad_queue.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc()})
-        pass
+        with threadLock:
+            bad_queue.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc()})
+            pass

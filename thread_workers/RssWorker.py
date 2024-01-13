@@ -1,3 +1,4 @@
+from urllib3 import Retry, PoolManager, Timeout
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -19,6 +20,9 @@ from nlp.Grader import Grader
 load_dotenv()
 threadLock = threading.Lock()
 xmlschema = etree.XMLSchema(etree.parse('xsd/rss.xsd'))
+timeout = Timeout(connect=2.0, read=2.0)
+retries = Retry(connect=0, read=2, redirect=5)
+http = PoolManager(retries=retries, timeout=timeout)
 
 # Load System ENV VARS
 FIELD_FOR_READABILITY = os.getenv('FIELD_FOR_READABILITY')
@@ -41,9 +45,10 @@ PROFANITY_CHECK = os.getenv('PROFANITY_CHECK').split(",")
 
 class RssWorker(threading.Thread):
     def __init__(self, job_queue, good_queue, bad_queue, quarantine_queue, purgatory_queue, nlp, profanity, model,
-                 fetcher_type,
+                 fetcher_type, lock,
                  *args, **kwargs):
         self.nlp = nlp
+        self.thread_lock = lock
         self.fetcher = fetcher_type
         self.model = model
         self.profanity = profanity
@@ -64,7 +69,8 @@ class RssWorker(threading.Thread):
     def run(self):
         while True:
             try:
-                task = self.job_queue.get(timeout=5)
+                with self.thread_lock:
+                    task = self.job_queue.get()
                 self.process(task)
             except queue.Empty:
                 return
@@ -82,8 +88,8 @@ class RssWorker(threading.Thread):
     @staticmethod
     def get_from_web(file_path):
         try:
-            rss = requests.get(file_path)
-            return rss.text.encode()
+            rss = http.request("GET", file_path)
+            return rss.data
         except Exception:
             raise
 
@@ -95,18 +101,20 @@ class RssWorker(threading.Thread):
     def log_failure_record(self, response, xml, error):
         try:
             title = xml.find(".//channel/title")
+            description = xml.find(".//channel/description")
             author = xml.find(".//channel/author")
-
-            self.purgatory_queue.put(
-                {
-                    "file_name": response['file_name'],
-                    "reason_for_failure": error,
-                    "title_cleaned": title.text if len(title) else 'N/A',
-                    "author": author.text if len(author) else 'N/A',
-                    "index_status": 320
-                })
+            with self.thread_lock:
+                self.purgatory_queue.put(
+                    {
+                        "file_name": response['file_name'],
+                        "reason_for_failure": error,
+                        "title_cleaned": title.text if len(title.text) else 'N/A',
+                        "description_cleaned": description.text if len(description.text) else 'N/A',
+                        "author": author.text if len(author.text) else 'N/A',
+                        "index_status": 320
+                    })
         except Exception:
-            pass
+            raise
 
     def get_language(self, text):
         doc = self.nlp(text)
@@ -191,7 +199,7 @@ class RssWorker(threading.Thread):
             elif self.fetcher == 'listen_notes':
                 xml = self.get_from_web(task['feedFilePath'])
                 response['file_name'] = str(uuid.uuid5(self.namespace, str(xml))) + '.rss.xml'
-                root = etree.fromstring(xml)
+                root = etree.XML(xml)
 
             # Check for Duplicates
             if self.redis.get(str(uuid.uuid5(self.namespace, str(xml)))) is None:
@@ -201,8 +209,8 @@ class RssWorker(threading.Thread):
                                  .format(task['feedFilePath'],
                                          self.redis.get(str(uuid.uuid5(self.namespace, str(xml))))))
 
-            if self.fetcher == 'listen_notes':
-                self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
+            #if self.fetcher == 'listen_notes':
+                #self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
 
             # Filter out unsupported languages
@@ -220,6 +228,13 @@ class RssWorker(threading.Thread):
             # Make sure the doc meets acceptance criteria.
             self.validate(root)
             channel = root.find(".//channel")
+
+            # Set some basic values
+            response['podcast_url'] = root.find(".//link").text
+            response['index_status'] = 310
+            response['episode_count'] = len(list(root.iter("item")))
+            # ADD coherence test and use chatagpt if fails
+            response['description_selected'] = 0
 
             # Populate nice to have variables
             for field in NICE_TO_HAVE:
@@ -263,20 +278,15 @@ class RssWorker(threading.Thread):
             if response['language'] == 'en':
                 response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
 
-            # Set some basic values
-            response['podcast_url'] = root.find(".//link").text
-            response['index_status'] = 310
-            response['episode_count'] = len(list(root.iter("item")))
-            # ADD coherence test and use chatagpt if fails
-            response['description_selected'] = 0
-
             # Post response in the completed queue.
-            self.complete_queue.put(response)
+            with self.thread_lock:
+                self.complete_queue.put(response)
 
         except ClientError as err:
             print(err)
-            self.error_queue.put(
-                {"file_name": response['file_name'], "error": traceback.format_exc()})
+            with self.thread_lock:
+                self.error_queue.put(
+                    {"file_name": response['file_name'], "error": traceback.format_exc()})
 
         except ValueError as err:
             # print(err)
@@ -284,5 +294,6 @@ class RssWorker(threading.Thread):
 
         except Exception as err:
             # print(err)
-            self.error_queue.put(
-                {"file_name": response['file_name'], "error": str(err), "stack_trace": traceback.format_exc()})
+            with self.thread_lock:
+                self.error_queue.put(
+                    {"file_name": response['file_name'], "error": str(err), "stack_trace": traceback.format_exc()})
