@@ -103,18 +103,18 @@ class RssWorker(threading.Thread):
             title = xml.find(".//channel/title")
             description = xml.find(".//channel/description")
             author = xml.find(".//channel/author")
-
-            self.purgatory_queue.put(
-                {
-                    "file_name": response['file_name'],
-                    "reason_for_failure": error,
-                    "title_cleaned": title.text if len(title.text) else 'N/A',
-                    "description_cleaned": description.text if len(description.text) else 'N/A',
-                    "author": author.text if len(author.text) else 'N/A',
-                    "index_status": 320
-                })
+            with self.thread_lock:
+                self.purgatory_queue.put(
+                    {
+                        "file_name": response['file_name'],
+                        "reason_for_failure": error,
+                        "title_cleaned": title.text if len(title.text) else 'N/A',
+                        "description_cleaned": description.text if len(description.text) else 'N/A',
+                        "author": author.text if len(author.text) else 'N/A',
+                        "index_status": 320
+                    })
         except Exception:
-            pass
+            raise
 
     def get_language(self, text):
         doc = self.nlp(text)
@@ -284,8 +284,9 @@ class RssWorker(threading.Thread):
 
         except ClientError as err:
             print(err)
-            self.error_queue.put(
-                {"file_name": response['file_name'], "error": traceback.format_exc()})
+            with self.thread_lock:
+                self.error_queue.put(
+                    {"file_name": response['file_name'], "error": traceback.format_exc()})
 
         except ValueError as err:
             # print(err)
@@ -293,5 +294,6 @@ class RssWorker(threading.Thread):
 
         except Exception as err:
             # print(err)
-            self.error_queue.put(
-                {"file_name": response['file_name'], "error": str(err), "stack_trace": traceback.format_exc()})
+            with self.thread_lock:
+                self.error_queue.put(
+                    {"file_name": response['file_name'], "error": str(err), "stack_trace": traceback.format_exc()})
