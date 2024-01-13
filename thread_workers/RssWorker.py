@@ -170,7 +170,7 @@ class RssWorker(threading.Thread):
             # Make sure the title and description are not too short.
             title_len = 0
             description_len = 0
-            if len(xml.find(".//description")).text is not None:
+            if xml.find(".//description") is not None and xml.find(".//description").text is not None:
                 description_len = len(xml.find(".//description").text.split(' '))
             if xml.find(".//title").text is not None:
                 title_len = len(xml.find(".//title").text.split(' '))
