@@ -63,29 +63,25 @@ def flush_queues(logger):
     if not good_queue.empty():
         with threadLock:
             good_list = list(good_queue.queue)
-            with good_queue.mutex:
-                good_queue.queue.clear()
+            good_queue.queue.clear()
         logger.insert_many('podcast_active', good_list)
 
     if not purgatory_queue.empty():
         with threadLock:
             purgatory_list = list(purgatory_queue.queue)
-            with purgatory_queue.mutex:
-                purgatory_queue.queue.clear()
+            purgatory_queue.queue.clear()
         logger.insert_many('podcast_purgatory', purgatory_list)
 
     if not bad_queue.empty():
         with threadLock:
             bad_list = list(bad_queue.queue)
-            with bad_queue.mutex:
-                bad_queue.queue.clear()
+            bad_queue.queue.clear()
         logger.insert_many('error_log', bad_list)
 
     if not quarantine_queue.empty():
         with threadLock:
             quarantine_list = list(bad_queue.queue)
-            with quarantine_queue.mutex:
-                quarantine_queue.queue.clear()
+            quarantine_queue.queue.clear()
         logger.insert_many('quarantine', quarantine_list)
 
 
@@ -113,7 +109,7 @@ if __name__ == '__main__':
         threads = []
         for i in range(THREAD_COUNT):
             w = RssWorker(jobs, good_queue, bad_queue, quarantine_queue, purgatory_queue, nlp, profanity, model,
-                          fetcher_type)
+                          fetcher_type, threadLock)
             # w.daemon = True
             w.start()
             threads.append(w)

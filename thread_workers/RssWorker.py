@@ -45,9 +45,10 @@ PROFANITY_CHECK = os.getenv('PROFANITY_CHECK').split(",")
 
 class RssWorker(threading.Thread):
     def __init__(self, job_queue, good_queue, bad_queue, quarantine_queue, purgatory_queue, nlp, profanity, model,
-                 fetcher_type,
+                 fetcher_type, lock,
                  *args, **kwargs):
         self.nlp = nlp
+        self.thread_lock = lock
         self.fetcher = fetcher_type
         self.model = model
         self.profanity = profanity
@@ -68,8 +69,8 @@ class RssWorker(threading.Thread):
     def run(self):
         while True:
             try:
-                with self.job_queue.mutex:
-                    task = self.job_queue.get(timeout=5)
+                with self.thread_lock:
+                    task = self.job_queue.get()
                 self.process(task)
             except queue.Empty:
                 return
@@ -278,7 +279,8 @@ class RssWorker(threading.Thread):
                 response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
 
             # Post response in the completed queue.
-            self.complete_queue.put(response)
+            with self.thread_lock:
+                self.complete_queue.put(response)
 
         except ClientError as err:
             print(err)
