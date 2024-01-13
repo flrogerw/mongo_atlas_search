@@ -168,8 +168,13 @@ class RssWorker(threading.Thread):
                     raise ValueError("VALIDATION_ERROR: RSS is missing required element: {}.".format(e))
 
             # Make sure the title and description are not too short.
-            description_len = len(xml.find(".//description").text.split(' '))
-            title_len = len(xml.find(".//title").text.split(' '))
+            title_len = 0
+            description_len = 0
+            if xml.find(".//description") is not None:
+                description_len = len(xml.find(".//description").text.split(' '))
+            if xml.find(".//title") is not None:
+                title_len = len(xml.find(".//title").text.split(' '))
+
             if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
                 raise ValueError(
                     "VALIDATION_ERROR: Minimum length(s) not met: title {}:{}, description {}:{}."
@@ -213,8 +218,10 @@ class RssWorker(threading.Thread):
 
 
             # Filter out unsupported languages
+            language = None
+            if root.find(".//language") is not None:
+                language = root.find(".//language").text.lower().split('-')[0]
 
-            language = root.find(".//language").text.lower().split('-')[0] if root.find(".//language") is not None else None
             if language is None:
                 language_tuple = self.get_language
                 if language_tuple[0] in LANGUAGES and language_tuple[1] > float(MIN_LANGUAGE_TOLERANCE):
