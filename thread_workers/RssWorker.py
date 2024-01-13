@@ -295,4 +295,4 @@ class RssWorker(threading.Thread):
             # print(err)
             with self.thread_lock:
                 self.error_queue.put(
-                    {"file_name": response['file_name'], "error": str(err), "stack_trace": task['feedFilePath']})
+                    {"file_name": task['feedFilePath'], "error": str(err), "stack_trace": traceback.format_exc()})
