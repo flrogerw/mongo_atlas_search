@@ -103,3 +103,34 @@ CREATE TABLE quarantine (
 	, date_processed        													TIMESTAMPTZ     							NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX idx_podcast_uuid       ON quarantine    (podcast_uuid);
+
+
+CREATE TABLE station (
+	  station_uuid																UUID																					NOT NULL PRIMARY KEY
+	, station_name																TEXT																					NOT NULL
+	, call_sign																	TEXT																					NOT NULL
+	, station_id																INTEGER																					NOT NULL
+	, category_id																SMALLINT
+	, format_id																	SMALLINT
+	, organization_id															SMALLINT
+	, band_id																	SMALLINT
+	, geo_position																POINT
+	, date_acquired																DATE
+	, date_disposed																DATE
+	, has_jump2go																BOOLEAN
+	, is_searchable																BOOLEAN
+	, frequency																	TEXT
+	, website																	TEXT
+	, slug																		TEXT
+	, phonetic_name																TEXT
+	, slogan																	TEXT
+	, description																TEXT
+	, date_created																TIMESTAMPTZ
+	, date_modified																TIMESTAMPTZ
+	, site_slug																	TEXT
+	, seo_description															TEXT
+	, status																	BOOLEAN
+	, is_explicit																BOOLEAN
+	, publish_state_id															INTEGER
+);
+
