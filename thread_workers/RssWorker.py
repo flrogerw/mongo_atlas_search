@@ -238,10 +238,16 @@ class RssWorker(threading.Thread):
             # self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
             # Make sure the doc meets acceptance criteria.
-            self.validate(root)
-            # Get Language
             response['language'] = self.validate_language(root)
+            self.validate(root)
+
             channel = root.find(".//channel")
+            response['index_status'] = 310
+            # Set some basic values
+            response['podcast_url'] = root.find(".//link").text
+            response['episode_count'] = len(list(root.iter("item")))
+            # ADD coherence test and use chatagpt if fails
+            response['description_selected'] = 0
 
             # PreProcess text
             for e in ELEMENTS_TO_PROCESS:
@@ -251,13 +257,6 @@ class RssWorker(threading.Thread):
                     response[e + '_lemma'] = clean_text.get_tokens()
                 if e == FIELD_TO_VECTOR:
                     response[FIELD_TO_VECTOR + '_vector'] = pickle.dumps(clean_text.get_vector())
-
-            response['index_status'] = 310
-            # Set some basic values
-            response['podcast_url'] = root.find(".//link").text
-            response['episode_count'] = len(list(root.iter("item")))
-            # ADD coherence test and use chatagpt if fails
-            response['description_selected'] = 0
 
             # Populate nice to have variables
             for field in NICE_TO_HAVE:
