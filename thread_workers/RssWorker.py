@@ -220,11 +220,15 @@ class RssWorker(threading.Thread):
 
             # Filter out unsupported languages
             language = None
-            if root.find(".//language") is not None:
+            if xml.find(".//language") is not None and xml.find(".//language").text is not None:
                 language = root.find(".//language").text.lower().split('-')[0]
 
             if language is None:
-                language, tolerance = self.get_language
+                get_lang = self.get_language
+                if get_lang is None:
+                    raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
+                language, tolerance = get_lang
+
                 if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
                     language = language.lower().split('-')[0]
             if language not in LANGUAGES:
