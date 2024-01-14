@@ -119,6 +119,7 @@ class RssWorker(threading.Thread):
     def get_language(self, text):
         doc = self.nlp(text)
         dl = doc._.language
+        print(dl)
         return dl["language"], dl["score"]
 
     def get_readability(self, text, grader_type='dale_chall'):
