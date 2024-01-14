@@ -199,16 +199,16 @@ class RssWorker(threading.Thread):
             language = root.find(".//language").text.lower().split('-')[0]
 
         if language is None:
-            get_lang = self.get_language(ProcessText.return_clean_text(root.find(".//channel/description")))
-            print(get_lang, flush=True)
-            if get_lang is None:
-                raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
-            language, tolerance = get_lang
+            language_text = root.find(".//description")
+            if language_text is not None and language_text.text is not None:
+                get_lang = self.get_language(ProcessText.return_clean_text(language_text.text))
+                if get_lang is None:
+                    raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
+                language, tolerance = get_lang
 
             if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
                 language = language.lower().split('-')[0]
         if language not in LANGUAGES:
-            # LOG AS 'excluded' and insert into DB
             raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
         else:
             return language
@@ -273,6 +273,7 @@ class RssWorker(threading.Thread):
             for field in FIELDS_TO_HASH:
                 short_field = field.replace('_cleaned', '')
                 response['md5_' + short_field] = hashlib.md5(response[field].encode()).hexdigest()
+
 
             self.is_duplicate(response)
 
