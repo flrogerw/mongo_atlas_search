@@ -223,9 +223,9 @@ class RssWorker(threading.Thread):
                 language = root.find(".//language").text.lower().split('-')[0]
 
             if language is None:
-                language_tuple = self.get_language
-                if language_tuple[0] in LANGUAGES and language_tuple[1] > float(MIN_LANGUAGE_TOLERANCE):
-                    language = language_tuple[0].lower().split('-')[0]
+                language, tolerance = self.get_language
+                if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
+                    language = language.lower().split('-')[0]
             if language not in LANGUAGES:
                 # LOG AS 'excluded' and insert into DB
                 raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
