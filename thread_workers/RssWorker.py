@@ -192,6 +192,27 @@ class RssWorker(threading.Thread):
         except Exception:
             raise
 
+    def validate_language(self, root):
+        # Filter out unsupported languages
+        language = None
+        if root.find(".//language") is not None and len(root.find(".//language").text) > 0:
+            language = root.find(".//language").text.lower().split('-')[0]
+
+        if language is None:
+            get_lang = self.get_language(ProcessText.return_clean_text(root.find(".//channel/description")))
+            print(get_lang, flush=True)
+            if get_lang is None:
+                raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
+            language, tolerance = get_lang
+
+            if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
+                language = language.lower().split('-')[0]
+        if language not in LANGUAGES:
+            # LOG AS 'excluded' and insert into DB
+            raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
+        else:
+            return language
+
     def process(self, task):
         response = dict.fromkeys(RESPONSE_OBJECT, False)
         root = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -213,35 +234,27 @@ class RssWorker(threading.Thread):
                                  .format(task['feedFilePath'],
                                          self.redis.get(str(uuid.uuid5(self.namespace, str(xml))))))
 
-            #if self.fetcher == 'listen_notes':
-                #self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
-
-            # Filter out unsupported languages
-            language = None
-            if root.find(".//language") is not None and len(root.find(".//language").text) > 0:
-                language = root.find(".//language").text.lower().split('-')[0]
-
-            if language is None:
-                get_lang = self.get_language
-                if get_lang is None:
-                    raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
-                language, tolerance = get_lang
-
-                if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
-                    language = language.lower().split('-')[0]
-            if language not in LANGUAGES:
-                # LOG AS 'excluded' and insert into DB
-                raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
-            else:
-                response['language'] = language
+            # if self.fetcher == 'listen_notes':
+            # self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
             # Make sure the doc meets acceptance criteria.
             self.validate(root)
+            # Get Language
+            response['language'] = self.validate_language(root)
             channel = root.find(".//channel")
 
+            # PreProcess text
+            for e in ELEMENTS_TO_PROCESS:
+                clean_text = ProcessText(channel.find(".//" + e).text, self.model, response['language'])
+                response[e + "_cleaned"] = clean_text.get_clean()
+                if e in GET_TOKENS:
+                    response[e + '_lemma'] = clean_text.get_tokens()
+                if e == FIELD_TO_VECTOR:
+                    response[FIELD_TO_VECTOR + '_vector'] = pickle.dumps(clean_text.get_vector())
+
+            response['index_status'] = 310
             # Set some basic values
             response['podcast_url'] = root.find(".//link").text
-            response['index_status'] = 310
             response['episode_count'] = len(list(root.iter("item")))
             # ADD coherence test and use chatagpt if fails
             response['description_selected'] = 0
@@ -252,15 +265,6 @@ class RssWorker(threading.Thread):
                     text = ProcessText(channel.find(".//" + field).text, self.model, response['language'])
                     field = field.replace('/', '_')
                     response[field] = text.get_clean()
-
-            # PreProcess text
-            for e in ELEMENTS_TO_PROCESS:
-                clean_text = ProcessText(channel.find(".//" + e).text, self.model, response['language'])
-                response[e + "_cleaned"] = clean_text.get_clean()
-                if e in GET_TOKENS:
-                    response[e + '_lemma'] = clean_text.get_tokens()
-                if e == FIELD_TO_VECTOR:
-                    response[FIELD_TO_VECTOR + '_vector'] = pickle.dumps(clean_text.get_vector())
 
             # Hash identifier fields
             fields_to_hash = list(map(lambda a, r=response: r[a], FIELDS_TO_HASH))

@@ -32,6 +32,18 @@ class ProcessText:
         return self.tokens
 
     @staticmethod
+    def return_clean_text(text):
+        try:
+            clean_text = BeautifulSoup(text, "html5lib").get_text()
+            clean_text= re.sub(r"([\r+,\n+,\t+])", ' ', re.sub(CLEANER, '', unidecode(clean_text)
+                                               .replace('\"', "'").replace('|', ' '))).replace('  ',
+                                                                                               ' ')
+            return clean_text
+        except Exception:
+            raise
+
+
+    @staticmethod
     def clean_text(text):
         try:
             return BeautifulSoup(text, "html5lib").get_text()
