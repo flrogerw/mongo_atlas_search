@@ -119,7 +119,6 @@ class RssWorker(threading.Thread):
     def get_language(self, text):
         doc = self.nlp(text)
         dl = doc._.language
-        print(dl)
         return dl["language"], dl["score"]
 
     def get_readability(self, text, grader_type='dale_chall'):
@@ -217,10 +216,9 @@ class RssWorker(threading.Thread):
             #if self.fetcher == 'listen_notes':
                 #self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
-
             # Filter out unsupported languages
             language = None
-            if xml.find(".//language") is not None and xml.find(".//language").text is not None:
+            if root.find(".//language") is not None and len(root.find(".//language").text) > 0:
                 language = root.find(".//language").text.lower().split('-')[0]
 
             if language is None:
