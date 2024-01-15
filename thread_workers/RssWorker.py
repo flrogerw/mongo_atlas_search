@@ -108,9 +108,9 @@ class RssWorker(threading.Thread):
                     {
                         "file_name": response['file_name'],
                         "reason_for_failure": error,
-                        "title_cleaned": title.text if title is not None else 'N/A',
-                        "description_cleaned": description.text if description is not None else 'N/A',
-                        "author": author.text if author is not None else 'N/A',
+                        "title_cleaned": title.text if hasattr(title, 'text') else 'N/A',
+                        "description_cleaned": description.text if hasattr(description, 'text') else 'N/A',
+                        "author": author.text if hasattr(author, 'text') else 'N/A',
                         "index_status": 320
                     })
         except Exception:
@@ -156,7 +156,7 @@ class RssWorker(threading.Thread):
             raise
 
     @staticmethod
-    def validate(xml):
+    def validate_xml(xml):
         try:
             # Make sure there is a channel element to parse
             if xmlschema.validate(xml) is False:
@@ -172,8 +172,24 @@ class RssWorker(threading.Thread):
             description_len = 0
             if xml.find(".//description") is not None and xml.find(".//description").text is not None:
                 description_len = len(xml.find(".//description").text.split(' '))
-            if xml.find(".//title").text is not None:
+            if xml.find(".//title") is not None and xml.find(".//title").text is not None:
                 title_len = len(xml.find(".//title").text.split(' '))
+
+            if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
+                raise ValueError(
+                    "VALIDATION_ERROR: Minimum length(s) not met: title {}:{}, description {}:{}."
+                    .format(title_len, MIN_TITLE_LENGTH, description_len,
+                            MIN_DESCRIPTION_LENGTH))
+        except Exception:
+            raise
+    @staticmethod
+    def validate_response(response):
+        try:
+            # Make sure the title and description are not too short.
+            title_len = 0
+            description_len = 0
+            description_len = len(response['description_cleaned'].split(' '))
+            title_len = len(response['title_cleaned'].split(' '))
 
             if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
                 raise ValueError(
@@ -239,7 +255,7 @@ class RssWorker(threading.Thread):
 
             # Make sure the doc meets acceptance criteria.
             response['language'] = self.validate_language(root)
-            self.validate(root)
+            self.validate_xml(root)
 
             channel = root.find(".//channel")
             response['index_status'] = 310
@@ -258,6 +274,8 @@ class RssWorker(threading.Thread):
                 if e == FIELD_TO_VECTOR:
                     response[FIELD_TO_VECTOR + '_vector'] = pickle.dumps(clean_text.get_vector())
 
+            self.validate_response(response)
+
             # Populate nice to have variables
             for field in NICE_TO_HAVE:
                 if channel.find(".//" + field) is not None:
@@ -274,12 +292,11 @@ class RssWorker(threading.Thread):
                 short_field = field.replace('_cleaned', '')
                 response['md5_' + short_field] = hashlib.md5(response[field].encode()).hexdigest()
 
-
             self.is_duplicate(response)
 
             self.redis.set(response['md5_podcast_url'], response['podcast_uuid'])
-            self.redis.set('md5_description', response['podcast_uuid'])
-            self.redis.set('md5_title', response['podcast_uuid'])
+            self.redis.set(response['md5_description'], response['podcast_uuid'])
+            self.redis.set(response['md5_title'], response['podcast_uuid'])
 
             # Check for Profanity
             bad_words = self.bad_words[response['language']]

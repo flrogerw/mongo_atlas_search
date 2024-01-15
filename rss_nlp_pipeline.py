@@ -46,10 +46,10 @@ model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 # Setup Redis
 redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
 if os.getenv('FLUSH_REDIS_ON_START') == 'True':
-    redisCli.select(2)
-    redisCli.flushdb()  # Clear internal hash cache
     redisCli.select(1)
     redisCli.flushdb()  # Clear etag hash cache
+    redisCli.select(2)
+    redisCli.flushdb()  # Clear internal hash cache
 
 # Set up Queues
 jobs = queue.Queue(int(os.getenv('JOB_QUEUE_SIZE')))
@@ -60,26 +60,29 @@ purgatory_queue = queue.Queue()
 
 
 def flush_queues(logger):
-    with threadLock:
-        if not good_queue.empty():
-            good_list = list(good_queue.queue)
-            good_queue.queue.clear()
-            logger.insert_many('podcast_active', good_list)
+    try:
+        with threadLock:
+            if not good_queue.empty():
+                good_list = list(good_queue.queue)
+                good_queue.queue.clear()
+                logger.insert_many('podcast_active', good_list)
 
-        if not purgatory_queue.empty():
-            purgatory_list = list(purgatory_queue.queue)
-            purgatory_queue.queue.clear()
-            logger.insert_many('podcast_purgatory', purgatory_list)
+            if not purgatory_queue.empty():
+                purgatory_list = list(purgatory_queue.queue)
+                purgatory_queue.queue.clear()
+                logger.insert_many('podcast_purgatory', purgatory_list)
 
-        if not bad_queue.empty():
-            bad_list = list(bad_queue.queue)
-            bad_queue.queue.clear()
-            logger.insert_many('error_log', bad_list)
+            if not bad_queue.empty():
+                bad_list = list(bad_queue.queue)
+                bad_queue.queue.clear()
+                logger.insert_many('error_log', bad_list)
 
-        if not quarantine_queue.empty():
-            quarantine_list = list(bad_queue.queue)
-            quarantine_queue.queue.clear()
-            logger.insert_many('quarantine', quarantine_list)
+            if not quarantine_queue.empty():
+                quarantine_list = list(bad_queue.queue)
+                quarantine_queue.queue.clear()
+                logger.insert_many('quarantine', quarantine_list)
+    except Exception:
+        raise
 
 
 def monitor(id, stop):
@@ -88,16 +91,16 @@ def monitor(id, stop):
         start_time = datetime.now()
         while True:
             time.sleep(10)
+            flush_start_time = datetime.now()
             flush_queues(logger)
             if stop():
                 break
-            print('Completed: {} records, Remaining: {} Total Elapsed Time: {}'.format(record_count - jobs.qsize(),
-                                                                                       record_count - (
-                                                                                                   record_count - jobs.qsize()),
-                                                                                       datetime.now() - start_time),
-                  flush=True)
+            print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
+                record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
+                datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
     except Exception:
-        raise
+        with threadLock:
+            bad_queue.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc()})
 
 
 if __name__ == '__main__':
