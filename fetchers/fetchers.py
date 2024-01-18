@@ -1,6 +1,6 @@
 import os
 import sys
-from sql.Db import Db
+from sql.SqliteDb import Db
 from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from confluent_avro import AvroKeyValueSerde, SchemaRegistry

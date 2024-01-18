@@ -1,4 +1,4 @@
-from sql.Db import Db
+from sql.SqliteDb import Db
 from search.SearchClient import SearchClient
 from dotenv import load_dotenv
 import os
