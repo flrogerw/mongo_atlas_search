@@ -22,7 +22,7 @@ JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
 
 load_dotenv()
 threadLock = threading.Lock()
-"""
+
 db = PostgresDb('podcast_rw',
                 'write',
                 'pod_manager',
@@ -34,7 +34,7 @@ db = PostgresDb('postgres',
                 'postgres',
                 'localhost'
                 )
-
+"""
 record_count = 0
 
 """ Required to load properly below """

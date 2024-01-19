@@ -244,6 +244,7 @@ class RssWorker(threading.Thread):
                 root = etree.XML(xml)
                 response['file_hash'] = hashlib.md5(str(xml).encode()).hexdigest()
                 response['file_name'] = task['feedFilePath']
+
             elif self.fetcher == 'listen_notes':
                 xml = self.get_from_web(task['feedFilePath'])
                 response['podcast_uuid'] = str(uuid.uuid5(self.namespace, task['feedFilePath']))
@@ -252,13 +253,13 @@ class RssWorker(threading.Thread):
                 response['rss_url'] = task['feedFilePath']
                 root = etree.XML(xml)
 
-            compare_to = self.redis.get(response['file_hash'])
+            file_hash = self.redis.get(response['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
-            if compare_to is not None and compare_to == response['podcast_uuid']:
-                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], compare_to))
+            if file_hash is not None and file_hash == response['podcast_uuid']:
+                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], file_hash))
             # SAME BODY DIFFERENT URL title says "DELETED"??
-            if compare_to:
-                raise QuarantineError(compare_to)
+            if file_hash:
+                raise QuarantineError(file_hash)
             # Set entry in Redis
             else:
                 self.redis.set(response['file_hash'], response['podcast_uuid'])
@@ -267,9 +268,7 @@ class RssWorker(threading.Thread):
             self.validate_xml(root)
 
             # Set some basic values
-            # response['index_status'] = 310
             response['language'] = self.get_language(root)
-            # response['rss_url'] = root.find(".//channel/link").text
             response['episode_count'] = len(list(root.iter("item")))
             response['description_selected'] = 0  # ADD coherence test and use chatagpt if fails
 
