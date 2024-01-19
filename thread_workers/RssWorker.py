@@ -123,6 +123,7 @@ class RssWorker(threading.Thread):
                 "file_name": response['file_name'],
                 "file_hash": response['file_hash'],
                 "podcast_uuid": response['podcast_uuid'],
+                "language": response['language'],
                 "reason_for_failure": error,
                 "title_cleaned": title,
                 "description_cleaned": description,
