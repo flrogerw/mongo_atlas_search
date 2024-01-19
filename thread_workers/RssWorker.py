@@ -40,6 +40,9 @@ MIN_LANGUAGE_TOLERANCE = os.getenv('MIN_LANGUAGE_TOLERANCE')
 BUCKET = os.getenv('BUCKET')
 UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
 PROFANITY_CHECK = os.getenv('PROFANITY_CHECK').split(",")
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_USER = os.getenv('REDIS_USER')
+REDIS_PASS = os.getenv('REDIS_PASS')
 
 
 class RssWorker(threading.Thread):
@@ -57,7 +60,7 @@ class RssWorker(threading.Thread):
         self.quarantine_queue = quarantine_queue
         self.job_queue = job_queue
         self.s3 = boto3.client("s3")
-        self.redis = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
+        self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
         words = open('nlp/bad_word_list.json')
         self.bad_words = json.load(words)
@@ -164,16 +167,6 @@ class RssWorker(threading.Thread):
         else:
             return 0
 
-    def is_duplicate(self, response):
-        try:
-            duplicate_check = self.redis.get(response['podcast_uuid'])
-            if duplicate_check is not None:
-                raise ValidationError("Has the same URL as this current podcast: {}.".format(duplicate_check))
-            else:
-                self.redis.set(response['podcast_uuid'], response['rss_url'])
-        except Exception:
-            raise
-
     @staticmethod
     def validate_xml(xml):
         try:
@@ -261,13 +254,13 @@ class RssWorker(threading.Thread):
                 response['rss_url'] = task['feedFilePath']
                 root = etree.XML(xml)
 
-            file_hash = self.redis.get(response['file_hash'])
+            previous_podcast_uuid = self.redis.get(response['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
-            if file_hash is not None and file_hash == response['podcast_uuid']:
-                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], file_hash))
+            if previous_podcast_uuid is not None and previous_podcast_uuid == response['podcast_uuid']:
+                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], previous_podcast_uuid))
             # Same Body Different URL. title says "DELETED"??
-            if file_hash:
-                raise QuarantineError(file_hash)
+            if previous_podcast_uuid == response['podcast_uuid']:
+                raise QuarantineError(previous_podcast_uuid)
             # Set entry in Redis
             else:
                 self.redis.set(response['file_hash'], response['podcast_uuid'])
@@ -283,7 +276,6 @@ class RssWorker(threading.Thread):
             # Do the processing
             self.process_search_fields(root, response)
             self.validate_response(response)
-            self.is_duplicate(response)
             self.get_extra_fields(root, response)
             response['is_explicit'] = ProcessText.profanity_check(response, PROFANITY_CHECK, self.profanity)
             # Save the heavy lifting for last when we are sure everything is valid.
@@ -308,8 +300,8 @@ class RssWorker(threading.Thread):
             # print(err)
             self.log_to_purgatory(response, root, str(err))
 
-        except QuarantineError as err:
-            self.log_to_quarantine(response['podcast_uuid'], str(err), task['feedFilePath'])
+        except QuarantineError as previous_podcast_uuid:
+            self.log_to_quarantine(response['podcast_uuid'], str(previous_podcast_uuid), task['feedFilePath'])
 
         except Exception as err:
             # print(err)
