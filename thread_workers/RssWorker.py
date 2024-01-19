@@ -1,4 +1,3 @@
-from urllib3 import Retry, HTTPConnectionPool, Timeout
 from Errors import QuarantineError, ValidationError
 import boto3
 from botocore.exceptions import ClientError
@@ -16,13 +15,8 @@ import traceback
 from dotenv import load_dotenv
 from lxml import etree
 from nlp.ProcessText import ProcessText
-from nlp.Grader import Grader
 
 load_dotenv()
-xmlschema = etree.XMLSchema(etree.parse('xsd/rss.xsd'))
-timeout = Timeout(connect=2.0, read=2.0)
-retries = Retry(connect=0, read=2, redirect=5)
-http = HTTPConnectionPool('localhost', retries=retries, timeout=timeout)
 
 # Load System ENV VARS
 FIELD_FOR_READABILITY = os.getenv('FIELD_FOR_READABILITY')
@@ -62,8 +56,6 @@ class RssWorker(threading.Thread):
         self.s3 = boto3.client("s3")
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
-        words = open('nlp/bad_word_list.json')
-        self.bad_words = json.load(words)
 
         super().__init__(*args, **kwargs)
 
@@ -94,18 +86,21 @@ class RssWorker(threading.Thread):
             raise
 
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
+        # print(podcast_uuid, matching_uuid, file_name)
         with self.thread_lock:
             self.quarantine_queue.put({"podcast_uuid": podcast_uuid,
                                        "original_podcast_uuid": matching_uuid,
                                        "duplicate_file_name": file_name})
 
     def log_to_errors(self, file_name, error_str, stack_trace):
+        # print(error_str, stack_trace)
         with self.thread_lock:
             self.error_queue.put({"file_name": file_name,
                                   "error": error_str,
                                   "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
 
     def log_to_purgatory(self, response, xml, error):
+        # print(error)
         try:
             title = 'n/a'
             description = 'n/a'
@@ -148,25 +143,6 @@ class RssWorker(threading.Thread):
                 clean_text = ProcessText.return_clean_text(nth_field.text)
                 response[field] = clean_text if not None else 'n/a'
 
-    def get_language_from_model(self, text):
-        clean_text = ProcessText.return_clean_text(text)
-        doc = self.nlp(clean_text)
-        dl = doc._.language
-        return dl["language"], dl["score"]
-
-    def get_readability(self, text, grader_type='dale_chall'):
-        grader = Grader(text, self.nlp)
-        if grader_type == 'dale_chall':
-            return grader.dale_chall_readability_score()
-        elif grader_type == 'flesch_kincaid':
-            return grader.flesch_kincaid_readability_test()
-        elif grader_type == 'gunning_fog':
-            return grader.gunning_fog()
-        elif grader_type == 'smog_index':
-            return grader.smog_index()
-        else:
-            return 0
-
     @staticmethod
     def validate_xml(xml):
         try:
@@ -208,28 +184,6 @@ class RssWorker(threading.Thread):
         except Exception:
             raise
 
-    def get_language(self, root):
-        # Filter out unsupported languages
-        language = root.find(".//language")
-        if hasattr(language, 'text'):
-            language = language.text.lower().split('-')[0]
-        else:
-            language_text = root.find(".//description")
-            if hasattr(language_text, 'text'):
-                get_lang = self.get_language_from_model(language_text.text)
-                if get_lang is None:
-                    raise ValidationError("Language not supported: {}.".format(language))
-                language, tolerance = get_lang
-                if tolerance < float(MIN_LANGUAGE_TOLERANCE):
-                    raise ValidationError("Minimum Language Tolerance not met {}:{}.".format(tolerance,
-                                                                                             MIN_LANGUAGE_TOLERANCE))
-            else:
-                raise ValidationError("Can Not Determine Language.")
-        if language not in LANGUAGES:
-            raise ValidationError("Language not supported: {}.".format(language))
-        else:
-            return language
-
     def process(self, task):
         root = '<?xml version="1.0" encoding="UTF-8"?>'
         # Populate fields that may or may not get populated below.  We need to keep the structure
@@ -268,7 +222,7 @@ class RssWorker(threading.Thread):
             self.validate_xml(root)
 
             # Set some basic values
-            response['language'] = self.get_language(root)
+            response['language'] = ProcessText.get_language(root, self.nlp, MIN_LANGUAGE_TOLERANCE, LANGUAGES)
             response['episode_count'] = len(list(root.iter("item")))
             # Do the processing
             self.process_search_fields(root, response)
@@ -280,7 +234,7 @@ class RssWorker(threading.Thread):
 
             # Limited by Language Functions
             if response['language'] == 'en':
-                response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
+                response['readability'] = ProcessText.get_readability(response[FIELD_FOR_READABILITY], self.nlp)
 
             # Post response in the completed queue and S3.
             # if self.fetcher == 'listen_notes':
@@ -290,16 +244,13 @@ class RssWorker(threading.Thread):
                 self.complete_queue.put(response)
 
         except ClientError as err:
-            print(err)
             self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
 
         except ValidationError as err:
-            # print(err)
             self.log_to_purgatory(response, root, str(err))
 
         except QuarantineError as previous_podcast_uuid:
             self.log_to_quarantine(response['podcast_uuid'], str(previous_podcast_uuid), task['feedFilePath'])
 
         except Exception as err:
-            # print(err)
             self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())

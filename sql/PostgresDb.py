@@ -5,6 +5,8 @@ import psycopg2.extras
 class PostgresDb:
 
     def __init__(self, username, password, database, host):
+        self.cursor = None
+        self.connection = None
         self.database = database
         self.username = username
         self.password = password
@@ -55,5 +57,6 @@ class PostgresDb:
             self.connection.commit()
         except Exception:
             raise
+
     def close_connection(self):
         self.connection.close()
