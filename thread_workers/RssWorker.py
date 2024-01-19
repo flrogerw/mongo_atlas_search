@@ -124,6 +124,7 @@ class RssWorker(threading.Thread):
                 "file_hash": response['file_hash'],
                 "podcast_uuid": response['podcast_uuid'],
                 "language": response['language'],
+                "rss_url": response['rss_url'],
                 "reason_for_failure": error,
                 "title_cleaned": title,
                 "description_cleaned": description,
@@ -244,7 +245,7 @@ class RssWorker(threading.Thread):
         # Populate fields that may or may not get populated below.  We need to keep the structure
         # consistent, so we can use the bulk insert function of psycopg2.
         response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
-                    "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a'}
+                    "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a', "language": 'n/a'}
         try:
             if self.fetcher == 'kafka':
                 xml = self.get_from_s3(task['feedFilePath'])
