@@ -16,25 +16,17 @@ from better_profanity import profanity
 from sentence_transformers import SentenceTransformer
 
 # Load System ENV VARS
+load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
+DB_USER = os.getenv('DB_USER')
+DB_PASS = os.getenv('DB_PASS')
+DB_DATABASE = os.getenv('DB_DATABASE')
+DB_HOST = os.getenv('DB_HOST')
 
-load_dotenv()
 threadLock = threading.Lock()
-"""
-db = PostgresDb('podcast_rw',
-                'write',
-                'pod_manager',
-                'podcast.cxrfoquw9xex.us-east-1.rds.amazonaws.com'
-                )
-"""
-db = PostgresDb('postgres',
-                'postgres',
-                'postgres',
-                'localhost'
-                )
-
+db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 record_count = 0
 
 """ Required to load properly below """
@@ -58,7 +50,7 @@ model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 # Setup Redis
 redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
 if os.getenv('FLUSH_REDIS_ON_START') == 'True':
-    redisCli.flushdb()  # Clear etag hash cache
+    redisCli.flushdb()  # Clear hash cache
 
 # Set up Queues
 jobs = queue.Queue(int(os.getenv('JOB_QUEUE_SIZE')))
@@ -112,7 +104,8 @@ def monitor(id, stop):
     except Exception as err:
         print(err)
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
+                         "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
 
@@ -153,5 +146,6 @@ if __name__ == '__main__':
     except Exception as err:
         print(traceback.format_exc())
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
+                         "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

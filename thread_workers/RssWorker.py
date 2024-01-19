@@ -37,7 +37,6 @@ MIN_DESCRIPTION_LENGTH = os.getenv('MIN_DESCRIPTION_LENGTH')
 MIN_TITLE_LENGTH = os.getenv('MIN_TITLE_LENGTH')
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 MIN_LANGUAGE_TOLERANCE = os.getenv('MIN_LANGUAGE_TOLERANCE')
-RESPONSE_OBJECT = os.getenv('RESPONSE_OBJECT').split(",")
 BUCKET = os.getenv('BUCKET')
 UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
 PROFANITY_CHECK = os.getenv('PROFANITY_CHECK').split(",")
@@ -96,6 +95,12 @@ class RssWorker(threading.Thread):
             self.quarantine_queue.put({"podcast_uuid": podcast_uuid,
                                        "original_podcast_uuid": matching_uuid,
                                        "duplicate_file_name": file_name})
+
+    def log_to_errors(self, file_name, error_str, stack_trace):
+        with self.thread_lock:
+            self.error_queue.put({"file_name": file_name,
+                                  "error": error_str,
+                                  "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
 
     def log_to_purgatory(self, response, xml, error):
         try:
@@ -225,7 +230,7 @@ class RssWorker(threading.Thread):
                 language, tolerance = get_lang
                 if tolerance < float(MIN_LANGUAGE_TOLERANCE):
                     raise ValidationError("Minimum Language Tolerance not met {}:{}.".format(tolerance,
-                                                                                        MIN_LANGUAGE_TOLERANCE))
+                                                                                             MIN_LANGUAGE_TOLERANCE))
             else:
                 raise ValidationError("Can Not Determine Language.")
         if language not in LANGUAGES:
@@ -235,15 +240,17 @@ class RssWorker(threading.Thread):
 
     def process(self, task):
         root = '<?xml version="1.0" encoding="UTF-8"?>'
+        # Populate fields that may or may not get populated below.  We need to keep the structure
+        # consistent, so we can use the bulk insert function of psycopg2.
         response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
                     "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a'}
-
         try:
             if self.fetcher == 'kafka':
                 xml = self.get_from_s3(task['feedFilePath'])
                 root = etree.XML(xml)
                 response['file_hash'] = hashlib.md5(str(xml).encode()).hexdigest()
                 response['file_name'] = task['feedFilePath']
+
             elif self.fetcher == 'listen_notes':
                 xml = self.get_from_web(task['feedFilePath'])
                 response['podcast_uuid'] = str(uuid.uuid5(self.namespace, task['feedFilePath']))
@@ -252,13 +259,13 @@ class RssWorker(threading.Thread):
                 response['rss_url'] = task['feedFilePath']
                 root = etree.XML(xml)
 
-            compare_to = self.redis.get(response['file_hash'])
+            file_hash = self.redis.get(response['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
-            if compare_to is not None and compare_to == response['podcast_uuid']:
-                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], compare_to))
-            # SAME BODY DIFFERENT URL title says "DELETED"??
-            if compare_to:
-                raise QuarantineError(compare_to)
+            if file_hash is not None and file_hash == response['podcast_uuid']:
+                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], file_hash))
+            # Same Body Different URL. title says "DELETED"??
+            if file_hash:
+                raise QuarantineError(file_hash)
             # Set entry in Redis
             else:
                 self.redis.set(response['file_hash'], response['podcast_uuid'])
@@ -267,12 +274,11 @@ class RssWorker(threading.Thread):
             self.validate_xml(root)
 
             # Set some basic values
-            # response['index_status'] = 310
             response['language'] = self.get_language(root)
-            # response['rss_url'] = root.find(".//channel/link").text
             response['episode_count'] = len(list(root.iter("item")))
-            response['description_selected'] = 0  # ADD coherence test and use chatagpt if fails
-
+            # Add coherence test and use generative model if fails to create better text (not implemented)
+            response['description_selected'] = 0
+            # Do the processing
             self.process_search_fields(root, response)
             self.validate_response(response)
             self.is_duplicate(response)
@@ -281,7 +287,7 @@ class RssWorker(threading.Thread):
             # Save the heavy lifting for last when we are sure everything is valid.
             response['vector'] = pickle.dumps(ProcessText.get_vector(response[FIELD_TO_VECTOR], self.model))
 
-            # English Only Functions
+            # Limited by Language Functions
             if response['language'] == 'en':
                 response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
 
@@ -294,9 +300,7 @@ class RssWorker(threading.Thread):
 
         except ClientError as err:
             print(err)
-            with self.thread_lock:
-                self.error_queue.put(
-                    {"file_name": response['file_name'], "error": traceback.format_exc().replace("\x00", "\uFFFD")})
+            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
 
         except ValidationError as err:
             # print(err)
@@ -307,6 +311,4 @@ class RssWorker(threading.Thread):
 
         except Exception as err:
             # print(err)
-            with self.thread_lock:
-                self.error_queue.put(
-                    {"file_name": task['feedFilePath'], "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
