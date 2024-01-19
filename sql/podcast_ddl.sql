@@ -73,10 +73,10 @@ CREATE TABLE purgatory (
     , date_modified                                                             TIMESTAMPTZ                                          DEFAULT CURRENT_TIMESTAMP
     , description_selected                                                      INTEGER                                                         -- 110=Cleaned, 120=ChatGPT
     , readability                                                               INTEGER                                              DEFAULT 0
-    , is_explicit                                                               INTEGER                                                         -- 0=False 1=True
+    , is_explicit                                                               BOOLEAN                                                         -- 0=False 1=True
     , index_status                                                              INTEGER                                              DEFAULT 310        CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
     , episode_count                                                             INTEGER
-    , is_deleted                                                                INTEGER                                              DEFAULT 0   -- 0=False 1=True
+    , is_deleted                                                                BOOLEAN                                              DEFAULT FALSE
     , advanced_popularity                                                       FLOAT                                                DEFAULT 0   -- used for calculating APS
     , reason_for_failure                                                        TEXT                                        NOT NULL
     , file_name                                                                 VARCHAR(45)
@@ -87,7 +87,7 @@ CREATE TABLE purgatory (
     , image_url                                                                 VARCHAR(256)                                           -- to OS
     , rss_url                                                                   VARCHAR(128)                                           -- to OS
 ) PARTITION BY HASH (purgatory_id);
-CREATE INDEX idx_purgatoryid   													ON purgatory   								USING btree (purgatory_id);
+CREATE INDEX idx_purgatoryid                                                    ON purgatory                                USING btree (purgatory_id);
 CREATE TABLE purgatory_00 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 0);
 CREATE TABLE purgatory_01 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 CREATE TABLE purgatory_02 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 2);
@@ -102,7 +102,7 @@ CREATE TABLE purgatory_09 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, RE
 
 DROP TABLE IF EXISTS error_log CASCADE;
 CREATE TABLE error_log (
-      file_name                                                                 VARCHAR(256)                                 NOT NULL
+      file_name                                                                 VARCHAR(256)                                NOT NULL
     , error                                                                     TEXT                                        NOT NULL
     , stack_trace                                                               TEXT                                        NOT NULL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -117,11 +117,11 @@ CREATE TABLE active (
     , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
     , readability                                                               INTEGER                                     NOT NULL DEFAULT 0
-    , is_explicit                                                               INTEGER                                     NOT NULL        -- 0=False 1=True
+    , is_explicit                                                               BOOLEAN                                     NOT NULL
     , index_status                                                              INTEGER                                     NOT NULL DEFAULT 310   CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
     , episode_count                                                             INTEGER                                     NOT NULL
-    , is_deleted                                                                INTEGER                                     NOT NULL DEFAULT 0   -- 0=False 1=True
-    , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 1   -- used for calculating APS
+    , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
+    , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
     , file_name                                                                 VARCHAR(45)                                 NOT NULL
     , title_cleaned                                                             VARCHAR(256)                                NOT NULL        -- to OS
     , title_lemma                                                               VARCHAR(256)                                NOT NULL        -- to OS
@@ -135,7 +135,7 @@ CREATE TABLE active (
     , rss_url                                                                   VARCHAR(256)                                NOT NULL        -- to OS
 --    , PRIMARY KEY (active_id)
 ) PARTITION BY HASH (active_id);
-CREATE INDEX idx_active_id   													ON active   								USING btree (active_id);
+CREATE INDEX idx_active_id                                                      ON active                                   USING btree (active_id);
 CREATE TABLE active_00 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 0);
 CREATE TABLE active_01 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 CREATE TABLE active_02 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 2);
@@ -154,7 +154,7 @@ CREATE TABLE quarantine (
       quarantine_id                                                             INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
     , podcast_uuid                                                              UUID                                        NOT NULL
     , original_podcast_uuid                                                     UUID                                        NOT NULL
-    , duplicate_file_name                                                       VARCHAR(256)                                 NOT NULL
+    , duplicate_file_name                                                       VARCHAR(256)                                NOT NULL
     , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , PRIMARY KEY (quarantine_id)
 );
@@ -163,10 +163,10 @@ CREATE UNIQUE INDEX idx_podcast_uuid       ON quarantine    USING btree (podcast
 
 DROP TABLE IF EXISTS station CASCADE;
 CREATE TABLE station (
-      station_uuid                                                              UUID                                                                                    NOT NULL PRIMARY KEY
-    , station_name                                                              TEXT                                                                                    NOT NULL
-    , call_sign                                                                 TEXT                                                                                    NOT NULL
-    , station_id                                                                INTEGER                                                                                 NOT NULL
+      station_uuid                                                              UUID                                       NOT NULL
+    , station_name                                                              TEXT                                       NOT NULL
+    , call_sign                                                                 TEXT                                       NOT NULL
+    , station_id                                                                INTEGER                                    NOT NULL
     , category_id                                                               SMALLINT
     , format_id                                                                 SMALLINT
     , organization_id                                                           SMALLINT
@@ -189,4 +189,6 @@ CREATE TABLE station (
     , status                                                                    BOOLEAN
     , is_explicit                                                               BOOLEAN
     , publish_state_id                                                          INTEGER
+    , PRIAMRY KEY (station_uuid)
 );
+
