@@ -20,6 +20,9 @@ load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
+LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
+FLUSH_REDIS_ON_START = os.getenv('FLUSH_REDIS_ON_START')
+JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
@@ -37,7 +40,7 @@ def get_lang_detector(nlp, name):
 
 
 # Load Language Model
-nlp = spacy.load(os.getenv('LANGUAGE_MODEL'))
+nlp = spacy.load(LANGUAGE_MODEL)
 Language.factory("language_detector", func=get_lang_detector)
 nlp.add_pipe('language_detector', last=True)
 
@@ -49,13 +52,13 @@ model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 # Setup Redis
 redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
-if os.getenv('FLUSH_REDIS_ON_START') == 'True':
+if FLUSH_REDIS_ON_START == 'True':
     redisCli.flushdb()  # Clear hash cache
 
 # Set up Queues
-jobs = queue.Queue(int(os.getenv('JOB_QUEUE_SIZE')))
+jobs = queue.Queue(JOB_QUEUE_SIZE)
 active_q = queue.Queue()
-error_q = queue.Queue()
+errors_q = queue.Queue()
 quarantine_q = queue.Queue()
 purgatory_q = queue.Queue()
 
@@ -64,29 +67,32 @@ def flush_queues(logger):
     try:
         logger.connect()
         with threadLock:
-            active = list(active_q.queue)
-            purgatory = list(purgatory_q.queue)
-            error = list(error_q.queue)
-            quarantine = list(quarantine_q.queue)
-
+            active_list = list(active_q.queue)
             active_q.queue.clear()
+            purgatory_list = list(purgatory_q.queue)
             purgatory_q.queue.clear()
-            error_q.queue.clear()
+            errors_list = list(errors_q.queue)
+            errors_q.queue.clear()
+            quarantine_list = list(quarantine_q.queue)
             quarantine_q.queue.clear()
 
-        if active:
-            inserts = logger.append_ingest_ids('active', active)
-            logger.insert_many('active', inserts)
-        if purgatory:
-            inserts = logger.append_ingest_ids('purgatory', purgatory)
-            logger.insert_many('purgatory', inserts)
-        if error:
-            logger.insert_many('error_log', error)
-        if quarantine:
-            logger.insert_many('quarantine', quarantine)
+        if active_list:
+            active_inserts = logger.append_ingest_ids('active', active_list)
+            logger.insert_many('active', active_inserts)
+        if purgatory_list:
+            purgatory_inserts = logger.append_ingest_ids('purgatory', purgatory_list)
+            logger.insert_many('purgatory', purgatory_inserts)
+        if errors_list:
+            logger.insert_many('error_log', errors_list)
+        if quarantine_list:
+            logger.insert_many('quarantine', quarantine_list)
         logger.close_connection()
-    except Exception:
-        raise
+    except Exception as e:
+        print(e)
+        with threadLock:
+            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
+                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+        pass
 
 
 def monitor(id, stop):
@@ -101,10 +107,10 @@ def monitor(id, stop):
             print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
                 record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
                 datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
-    except Exception as err:
-        print(err)
+    except Exception as e:
+        print(e)
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
+            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
@@ -116,7 +122,7 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = RssWorker(jobs, active_q, error_q, quarantine_q, purgatory_q, nlp, profanity, model,
+            w = RssWorker(jobs, active_q, errors_q, quarantine_q, purgatory_q, nlp, profanity, model,
                           fetcher_type, threadLock)
             # w.daemon = True
             w.start()
@@ -146,6 +152,6 @@ if __name__ == '__main__':
     except Exception as err:
         print(traceback.format_exc())
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
+            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

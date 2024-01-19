@@ -55,6 +55,5 @@ class PostgresDb:
             self.connection.commit()
         except Exception:
             raise
-
     def close_connection(self):
         self.connection.close()
