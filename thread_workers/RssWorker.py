@@ -33,8 +33,8 @@ FIELDS_TO_HASH = os.getenv('FIELDS_TO_HASH').split(",")
 ELEMENTS_TO_PROCESS = os.getenv('ELEMENTS_TO_PROCESS').split(",")
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
 REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
-MIN_DESCRIPTION_LENGTH = os.getenv('MIN_DESCRIPTION_LENGTH')
-MIN_TITLE_LENGTH = os.getenv('MIN_TITLE_LENGTH')
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 MIN_LANGUAGE_TOLERANCE = os.getenv('MIN_LANGUAGE_TOLERANCE')
 BUCKET = os.getenv('BUCKET')
@@ -170,23 +170,20 @@ class RssWorker(threading.Thread):
     @staticmethod
     def validate_xml(xml):
         try:
-            if xmlschema.validate(xml) is False:
-                raise ValidationError("RSS is missing rss or channel element(s.)")
-
             # Make sure all required elements are present
             for element in REQUIRED_ELEMENTS:
-                if not hasattr(xml.find(".//" + element), 'text'):
+                if not hasattr(xml.find(".//channel" + element), 'text'):
                     raise ValidationError("RSS is missing required element: {}.".format(element))
         except Exception:
             raise
 
     @staticmethod
-    def validate_response(response):
+    def validate_text_length(response):
         try:
             description_len = len(response['description_cleaned'].split(' '))
             title_len = len(response['title_cleaned'].split(' '))
 
-            if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
+            if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
                 raise ValidationError(
                     "Minimum length(s) not met: title {}:{}, description {}:{}."
                     .format(title_len, MIN_TITLE_LENGTH, description_len,
@@ -238,7 +235,8 @@ class RssWorker(threading.Thread):
         # Populate fields that may or may not get populated below.  We need to keep the structure
         # consistent, so we can use the bulk insert function of psycopg2.
         response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
-                    "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a', "language": 'n/a'}
+                    "description_selected": 0,"author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a',
+                    "language": 'n/a'}
         try:
             if self.fetcher == 'kafka':
                 xml = self.get_from_s3(task['feedFilePath'])
@@ -257,7 +255,8 @@ class RssWorker(threading.Thread):
             previous_podcast_uuid = self.redis.get(response['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
             if previous_podcast_uuid is not None and previous_podcast_uuid == response['podcast_uuid']:
-                raise ValidationError("File {} is a duplicate to: {}.".format(task['feedFilePath'], previous_podcast_uuid))
+                raise ValidationError(
+                    "File {} is a duplicate to: {}.".format(task['feedFilePath'], previous_podcast_uuid))
             # Same Body Different URL. title says "DELETED"??
             if previous_podcast_uuid == response['podcast_uuid']:
                 raise QuarantineError(previous_podcast_uuid)
@@ -271,11 +270,9 @@ class RssWorker(threading.Thread):
             # Set some basic values
             response['language'] = self.get_language(root)
             response['episode_count'] = len(list(root.iter("item")))
-            # Add coherence test and use generative model if fails to create better text (not implemented)
-            response['description_selected'] = 0
             # Do the processing
             self.process_search_fields(root, response)
-            self.validate_response(response)
+            self.validate_text_length(response)
             self.get_extra_fields(root, response)
             response['is_explicit'] = ProcessText.profanity_check(response, PROFANITY_CHECK, self.profanity)
             # Save the heavy lifting for last when we are sure everything is valid.
