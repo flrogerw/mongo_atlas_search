@@ -17,20 +17,18 @@ class PostgresDb:
                                                                              self.database, self.password)
             self.connection = psycopg2.connect(conn_string)
             self.cursor = self.connection.cursor()
-        except Exception as err:
-            print(err)
+        except Exception:
             raise
 
     def truncate_table(self, table_name):
         try:
             self.cursor.execute("TRUNCATE TABLE {table} RESTART IDENTITY".format(table=table_name))
             self.connection.commit()
-        except Exception as err:
+        except Exception:
             raise
 
     def append_ingest_ids(self, table_name, response):
         try:
-            print([(d['file_hash'], d['podcast_uuid']) for d in response])
             argument_string = str([(d['file_hash'], d['podcast_uuid']) for d in response]).strip('[]')
             self.cursor.execute(
                 "INSERT INTO podcast.ingest (file_hash, podcast_uuid) VALUES" + argument_string + "RETURNING file_hash,ingest_id")

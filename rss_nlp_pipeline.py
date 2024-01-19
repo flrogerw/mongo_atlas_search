@@ -87,16 +87,13 @@ def flush_queues(logger):
             logger.insert_many('active', inserts)
         if purgatory:
             inserts = logger.append_ingest_ids('purgatory', purgatory)
-            #logger.insert_many('purgatory', inserts)
+            logger.insert_many('purgatory', inserts)
         if error:
-            x=0
-            # logger.insert_many('error_log', error)
+            logger.insert_many('error_log', error)
         if quarantine:
-            inserts = logger.append_ingest_ids('quarantine', quarantine)
-            logger.insert_many('quarantine', inserts)
+            logger.insert_many('quarantine', quarantine)
         logger.close_connection()
-    except Exception as err:
-        print(err)
+    except Exception:
         raise
 
 
@@ -113,8 +110,10 @@ def monitor(id, stop):
                 record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
                 datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
     except Exception as err:
+        print(err)
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc()})
+            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+        pass
 
 
 if __name__ == '__main__':
@@ -154,5 +153,5 @@ if __name__ == '__main__':
     except Exception as err:
         print(traceback.format_exc())
         with threadLock:
-            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc()})
+            error_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

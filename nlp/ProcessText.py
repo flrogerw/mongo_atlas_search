@@ -127,4 +127,4 @@ class ProcessText:
         bad_words = bad_words_list[response['language']]
         profanity_check_str = ' '.join(list(map(lambda a, r=response: r[a], fields_to_check)))
         profanity.load_censor_words(bad_words)
-        return int(profanity.contains_profanity(profanity_check_str))
+        return profanity.contains_profanity(profanity_check_str)

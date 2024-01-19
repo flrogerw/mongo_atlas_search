@@ -99,18 +99,29 @@ class RssWorker(threading.Thread):
 
     def log_to_purgatory(self, response, xml, error):
         try:
-            title = xml.find(".//channel/title")
-            description = xml.find(".//channel/description")
-            author = xml.find(".//channel/author")
+            title = 'n/a'
+            description = 'n/a'
+            author = 'n/a'
+
+            xml_title = xml.find(".//channel/title")
+            xml_description = xml.find(".//channel/description")
+            xml_author = xml.find(".//channel/author")
+
+            if hasattr(xml_title, 'text') and xml_title.text:
+                title = ProcessText.return_clean_text(xml_title.text)
+            if hasattr(xml_description, 'text') and xml_description.text:
+                description = ProcessText.return_clean_text(xml_description.text)
+            if hasattr(xml_author, 'text') and xml_author.text:
+                author = ProcessText.return_clean_text(xml_author.text)
+
             log_entry = {
                 "file_name": response['file_name'],
                 "file_hash": response['file_hash'],
                 "podcast_uuid": response['podcast_uuid'],
                 "reason_for_failure": error,
-                "title_cleaned": ProcessText.return_clean_text(title.text) if hasattr(title, 'text') else 'n/a',
-                "description_cleaned": ProcessText.return_clean_text(description.text) if hasattr(description,
-                                                                                                  'text') else 'n/a',
-                "author": ProcessText.return_clean_text(author.text) if hasattr(author, 'text') else 'n/a',
+                "title_cleaned": title,
+                "description_cleaned": description,
+                "author": author,
                 "index_status": 320
             }
             with self.thread_lock:
@@ -224,7 +235,7 @@ class RssWorker(threading.Thread):
 
     def process(self, task):
         root = '<?xml version="1.0" encoding="UTF-8"?>'
-        response = {"readability": 0, "index_status": 310, "is_deleted": 0, "advanced_popularity": 1,
+        response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
                     "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a'}
 
         try:
@@ -285,7 +296,7 @@ class RssWorker(threading.Thread):
             print(err)
             with self.thread_lock:
                 self.error_queue.put(
-                    {"file_name": response['file_name'], "error": traceback.format_exc()})
+                    {"file_name": response['file_name'], "error": traceback.format_exc().replace("\x00", "\uFFFD")})
 
         except ValidationError as err:
             # print(err)
@@ -298,4 +309,4 @@ class RssWorker(threading.Thread):
             # print(err)
             with self.thread_lock:
                 self.error_queue.put(
-                    {"file_name": task['feedFilePath'], "error": str(err), "stack_trace": traceback.format_exc()})
+                    {"file_name": task['feedFilePath'], "error": str(err), "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
