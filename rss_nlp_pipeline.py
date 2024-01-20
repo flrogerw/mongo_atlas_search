@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import queue
 import redis
@@ -134,9 +135,13 @@ if __name__ == '__main__':
         elif fetcher_type == 'listen_notes':
             fetcher = ListenNotesFetcher()
             records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
-            for record in records:
-                record_count += 1
-                jobs.put(record)
+            with threadLock:
+            	for record in records:
+                      record_count += 1
+                      jobs.put(record)
+                      if record_count % 10000 == 0:
+                            sys.stdout.write("Download progress: %d   \r" % (record_count) )
+                            sys.stdout.flush()
             jobs.join()
 
         for thread in threads:
