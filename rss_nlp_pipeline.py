@@ -109,7 +109,7 @@ def monitor(id, stop):
         print(e)
         with threadLock:
             errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
-                         "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
 
@@ -136,12 +136,12 @@ if __name__ == '__main__':
             fetcher = ListenNotesFetcher()
             records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
             with threadLock:
-            	for record in records:
-                      record_count += 1
-                      jobs.put(record)
-                      if record_count % 10000 == 0:
-                            sys.stdout.write("Download progress: %d   \r" % (record_count) )
-                            sys.stdout.flush()
+                for record in records:
+                    record_count += 1
+                    jobs.put(record)
+                    if record_count % 10000 == 0:
+                        sys.stdout.write("Job Queue Loading: %d   \r" % (record_count))
+                        sys.stdout.flush()
             jobs.join()
 
         for thread in threads:
@@ -155,5 +155,5 @@ if __name__ == '__main__':
         print(traceback.format_exc())
         with threadLock:
             errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(err),
-                         "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
