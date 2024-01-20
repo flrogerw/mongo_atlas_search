@@ -59,6 +59,7 @@ active_q = queue.Queue()
 errors_q = queue.Queue()
 quarantine_q = queue.Queue()
 purgatory_q = queue.Queue()
+episodes_q = queue.Queue()
 
 
 def flush_queues(logger):
@@ -73,6 +74,8 @@ def flush_queues(logger):
             errors_q.queue.clear()
             quarantine_list = list(quarantine_q.queue)
             quarantine_q.queue.clear()
+            episodes_list = list(episodes_q.queue)
+            episodes_q.queue.clear()
 
         if active_list:
             active_inserts = logger.append_ingest_ids('active', active_list)
@@ -84,6 +87,9 @@ def flush_queues(logger):
             logger.insert_many('error_log', errors_list)
         if quarantine_list:
             logger.insert_many('quarantine', quarantine_list)
+        if episodes_list:
+            episodes_inserts = logger.append_ingest_ids('episodes', episodes_list)
+            logger.insert_many('episodes', episodes_inserts)
         logger.close_connection()
     except Exception as e:
         print(e)
@@ -140,7 +146,7 @@ if __name__ == '__main__':
                     record_count += 1
                     jobs.put(record)
                     if record_count % 10000 == 0:
-                        sys.stdout.write("Job Queue Loading: %d   \r" % (record_count))
+                        sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
                         sys.stdout.flush()
             jobs.join()
 

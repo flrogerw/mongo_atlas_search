@@ -85,6 +85,37 @@ class RssWorker(threading.Thread):
         except Exception:
             raise
 
+    def log_to_episodes(self, episode, xml, language):
+        # print(episode_dict)
+        # Check for required fields
+        fields = ["title", "summary", "author", "enclosure", "pubDate", "enclosure", "explicit", "keywords"]
+
+        for field in fields:
+            episode[field] = 'n/a'
+            stub = xml.find(".//" + field)
+        if hasattr(stub, 'text') and stub.text:
+            episode[field] = ProcessText.return_clean_text(stub.text)
+
+        log_entry = {
+            "title_cleaned": episode['file_name'],
+            "title_lemma": episode['file_name'],
+            "description_cleaned": episode['file_name'],
+            "description_lemma": episode['file_name'],
+            "episode_hash": episode['file_hash'],
+            "episode_uuid": episode['podcast_uuid'],
+            "language": language,
+            "episode_url": title,
+            "publish_date": description,
+            "author": author,
+            "is_explicit": 320,
+            "length": 320,
+            "file_type": 320,
+            "tags": 320,
+            "vector": ''
+        }
+        with self.thread_lock:
+            self.purgatory_queue.put(log_entry)
+
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
         # print(podcast_uuid, matching_uuid, file_name)
         with self.thread_lock:
@@ -175,12 +206,13 @@ class RssWorker(threading.Thread):
             if e in GET_TOKENS:
                 response[e + '_lemma'] = clean_text.get_tokens()
 
-    def process_episodes(self, root):
+    def process_episodes(self, root, podcast_uuid):
         try:
             for item in root.iter("item"):
-                epidose_id = str(uuid.uuid5(self.namespace, str(item)))
-                if item is not None:
+                episode = {'episode_hash': str(uuid.uuid5(self.namespace, str(item))), "podcast_uuid": podcast_uuid}
+                if hasattr(item, 'text'):
                     print(item.text)
+                self.log_to_episodes(episode)
         except Exception:
             raise
 
@@ -189,7 +221,7 @@ class RssWorker(threading.Thread):
         # Populate fields that may or may not get populated below.  We need to keep the structure
         # consistent, so we can use the bulk insert function of psycopg2.
         response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
-                    "description_selected": 0,"author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a',
+                    "description_selected": 0, "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a',
                     "language": 'n/a'}
         try:
             if self.fetcher == 'kafka':
@@ -228,6 +260,8 @@ class RssWorker(threading.Thread):
             self.process_search_fields(root, response)
             self.validate_text_length(response)
             self.get_extra_fields(root, response)
+            # self.process_episodes(root, response['podcast_uuid']):
+            # Get Explicit rating
             response['is_explicit'] = ProcessText.profanity_check(response, PROFANITY_CHECK, self.profanity)
             # Save the heavy lifting for last when we are sure everything is valid.
             response['vector'] = pickle.dumps(ProcessText.get_vector(response[FIELD_TO_VECTOR], self.model))
