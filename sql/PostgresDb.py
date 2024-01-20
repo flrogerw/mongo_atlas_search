@@ -14,8 +14,7 @@ class PostgresDb:
 
     def connect(self):
         try:
-            conn_string = "host={0} user={1} dbname={2} password={3}".format(self.host,
-                                                                             self.username,
+            conn_string = "host={0} user={1} dbname={2} password={3}".format(self.host, self.username,
                                                                              self.database, self.password)
             self.connection = psycopg2.connect(conn_string)
             self.cursor = self.connection.cursor()
@@ -49,10 +48,8 @@ class PostgresDb:
         try:
             columns = ', '.join(list_of_dicts[0].keys())
             place_holders = ','.join(['%s'] * len(list_of_dicts[0].keys()))
-            insert_tuples = [tuple(l.values()) for l in list_of_dicts]
-            query = "INSERT INTO podcast.{table} ({columns})VALUES ({place_holders})".format(table=table_name,
-                                                                                             columns=columns,
-                                                                                             place_holders=place_holders)
+            insert_tuples = [tuple(d.values()) for d in list_of_dicts]
+            query = "INSERT INTO podcast.{} ({})VALUES ({})".format(table_name, columns, place_holders)
             psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
             self.connection.commit()
         except Exception:
