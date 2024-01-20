@@ -148,7 +148,7 @@ class RssWorker(threading.Thread):
         try:
             # Make sure all required elements are present
             for element in REQUIRED_ELEMENTS:
-                if not hasattr(xml.find(".//channel" + element), 'text'):
+                if not hasattr(xml.find(".//channel/" + element), 'text'):
                     raise ValidationError("RSS is missing required element: {}.".format(element))
         except Exception:
             raise
