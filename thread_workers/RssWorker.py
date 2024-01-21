@@ -89,7 +89,7 @@ class RssWorker(threading.Thread):
         # print(episode_dict)
         # Check for required fields
         fields = ["title", "summary", "author", "enclosure", "pubDate", "enclosure", "explicit", "keywords"]
-
+        """
         for field in fields:
             episode[field] = 'n/a'
             stub = xml.find(".//" + field)
@@ -115,6 +115,7 @@ class RssWorker(threading.Thread):
         }
         with self.thread_lock:
             self.purgatory_queue.put(log_entry)
+        """
 
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
         # print(podcast_uuid, matching_uuid, file_name)
