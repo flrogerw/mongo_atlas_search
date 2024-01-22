@@ -1,4 +1,4 @@
-from urllib3 import Retry, HTTPConnectionPool, Timeout
+from Errors import QuarantineError, ValidationError
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -15,14 +15,8 @@ import traceback
 from dotenv import load_dotenv
 from lxml import etree
 from nlp.ProcessText import ProcessText
-from nlp.Grader import Grader
 
 load_dotenv()
-threadLock = threading.Lock()
-xmlschema = etree.XMLSchema(etree.parse('xsd/rss.xsd'))
-timeout = Timeout(connect=2.0, read=2.0)
-retries = Retry(connect=0, read=2, redirect=5)
-http = HTTPConnectionPool('localhost', retries=retries, timeout=timeout)
 
 # Load System ENV VARS
 FIELD_FOR_READABILITY = os.getenv('FIELD_FOR_READABILITY')
@@ -33,23 +27,25 @@ FIELDS_TO_HASH = os.getenv('FIELDS_TO_HASH').split(",")
 ELEMENTS_TO_PROCESS = os.getenv('ELEMENTS_TO_PROCESS').split(",")
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
 REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
-MIN_DESCRIPTION_LENGTH = os.getenv('MIN_DESCRIPTION_LENGTH')
-MIN_TITLE_LENGTH = os.getenv('MIN_TITLE_LENGTH')
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 MIN_LANGUAGE_TOLERANCE = os.getenv('MIN_LANGUAGE_TOLERANCE')
-RESPONSE_OBJECT = os.getenv('RESPONSE_OBJECT').split(",")
 BUCKET = os.getenv('BUCKET')
 UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
 PROFANITY_CHECK = os.getenv('PROFANITY_CHECK').split(",")
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_USER = os.getenv('REDIS_USER')
+REDIS_PASS = os.getenv('REDIS_PASS')
 
 
 class RssWorker(threading.Thread):
     def __init__(self, job_queue, good_queue, bad_queue, quarantine_queue, purgatory_queue, nlp, profanity, model,
-                 fetcher_type, lock,
+                 fetcher_type, thread_lock,
                  *args, **kwargs):
         self.nlp = nlp
-        self.thread_lock = lock
         self.fetcher = fetcher_type
+        self.thread_lock = thread_lock
         self.model = model
         self.profanity = profanity
         self.complete_queue = good_queue
@@ -58,19 +54,15 @@ class RssWorker(threading.Thread):
         self.quarantine_queue = quarantine_queue
         self.job_queue = job_queue
         self.s3 = boto3.client("s3")
-        self.redis = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
-        self.redis.select(2)  # internal hash storage
+        self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
-        words = open('nlp/bad_word_list.json')
-        self.bad_words = json.load(words)
 
         super().__init__(*args, **kwargs)
 
     def run(self):
         while True:
             try:
-                with self.thread_lock:
-                    task = self.job_queue.get()
+                task = self.job_queue.get()
                 self.process(task)
             except queue.Empty:
                 return
@@ -93,238 +85,207 @@ class RssWorker(threading.Thread):
         except Exception:
             raise
 
-    def log_quarantine(self, podcast_uuid, matching_uuid, file_name):
-        self.quarantine_queue.put({"podcast_uuid": podcast_uuid,
-                                   "original_podcast_uuid": matching_uuid,
-                                   "duplicate_file_name": file_name})
+    def log_to_episodes(self, episode, xml, language):
+        # print(episode_dict)
+        # Check for required fields
+        fields = ["title", "summary", "author", "enclosure", "pubDate", "enclosure", "explicit", "keywords"]
+        """
+        for field in fields:
+            episode[field] = 'n/a'
+            stub = xml.find(".//" + field)
+        if hasattr(stub, 'text') and stub.text:
+            episode[field] = ProcessText.return_clean_text(stub.text)
 
-    def log_failure_record(self, response, xml, error):
+        log_entry = {
+            "title_cleaned": episode['file_name'],
+            "title_lemma": episode['file_name'],
+            "description_cleaned": episode['file_name'],
+            "description_lemma": episode['file_name'],
+            "episode_hash": episode['file_hash'],
+            "episode_uuid": episode['podcast_uuid'],
+            "language": language,
+            "episode_url": title,
+            "publish_date": description,
+            "author": author,
+            "is_explicit": 320,
+            "length": 320,
+            "file_type": 320,
+            "tags": 320,
+            "vector": ''
+        }
+        with self.thread_lock:
+            self.purgatory_queue.put(log_entry)
+        """
+
+    def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
+        # print(podcast_uuid, matching_uuid, file_name)
+        with self.thread_lock:
+            self.quarantine_queue.put({"podcast_uuid": podcast_uuid,
+                                       "original_podcast_uuid": matching_uuid,
+                                       "duplicate_file_name": file_name})
+
+    def log_to_errors(self, file_name, error_str, stack_trace):
+        # print(error_str, stack_trace)
+        with self.thread_lock:
+            self.error_queue.put({"file_name": file_name,
+                                  "error": error_str,
+                                  "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
+
+    def log_to_purgatory(self, response, xml, error):
+        # print(error)
         try:
-            title = xml.find(".//channel/title")
-            description = xml.find(".//channel/description")
-            author = xml.find(".//channel/author")
+            title = 'n/a'
+            description = 'n/a'
+            author = 'n/a'
+
+            xml_title = xml.find(".//channel/title")
+            xml_description = xml.find(".//channel/description")
+            xml_author = xml.find(".//channel/author")
+
+            if hasattr(xml_title, 'text') and xml_title.text:
+                title = ProcessText.return_clean_text(xml_title.text)
+            if hasattr(xml_description, 'text') and xml_description.text:
+                description = ProcessText.return_clean_text(xml_description.text)
+            if hasattr(xml_author, 'text') and xml_author.text:
+                author = ProcessText.return_clean_text(xml_author.text)
+
+            log_entry = {
+                "file_name": response['file_name'],
+                "file_hash": response['file_hash'],
+                "podcast_uuid": response['podcast_uuid'],
+                "language": response['language'],
+                "rss_url": response['rss_url'],
+                "reason_for_failure": error,
+                "title_cleaned": title,
+                "description_cleaned": description,
+                "author": author,
+                "index_status": 320
+            }
             with self.thread_lock:
-                self.purgatory_queue.put(
-                    {
-                        "file_name": response['file_name'],
-                        "reason_for_failure": error,
-                        "title_cleaned": title.text if hasattr(title, 'text') else 'N/A',
-                        "description_cleaned": description.text if hasattr(description, 'text') else 'N/A',
-                        "author": author.text if hasattr(author, 'text') else 'N/A',
-                        "index_status": 320
-                    })
+                self.purgatory_queue.put(log_entry)
         except Exception:
             raise
 
-    def get_language(self, text):
-        doc = self.nlp(text)
-        dl = doc._.language
-        return dl["language"], dl["score"]
-
-    def get_readability(self, text, grader_type='dale_chall'):
-        grader = Grader(text, self.nlp)
-        if grader_type == 'dale_chall':
-            return grader.dale_chall_readability_score()
-        elif grader_type == 'flesch_kincaid':
-            return grader.flesch_kincaid_readability_test()
-        elif grader_type == 'gunning_fog':
-            return grader.gunning_fog()
-        elif grader_type == 'smog_index':
-            return grader.smog_index()
-        else:
-            return 0
-
-    def is_duplicate(self, response):
-        try:
-            #  If URL is the same, it is the same Podcast as per Ray
-            if self.redis.get(response['md5_podcast_url']) is not None:
-                raise ValueError("DUPLICATE_WARNING: Has the same URL as this current podcast: {}.".format(
-                    self.redis.get(response['md5_podcast_url'])))
-
-            # If title & description match but not the URL then...quarantine
-            title = self.redis.get(response['md5_title'])
-            description = self.redis.get(response['md5_description'])
-            is_quarantined = self.redis.get(response['podcast_uuid'])
-
-            if title is not None and description is not None and is_quarantined is None:
-                self.redis.set(response['podcast_uuid'], title)
-                self.log_quarantine(response['podcast_uuid'], title, response['file_name'])
-                raise Exception(
-                    "QUARANTINE_ERROR: Sent to Quarantine.  Matches Current Record: {}.".format(
-                        self.redis.get(response['md5_description'])))
-        except Exception:
-            raise
+    @staticmethod
+    def get_extra_fields(xml, response):
+        for field in NICE_TO_HAVE:
+            nth_field = xml.find(".//channel/" + field)
+            if hasattr(nth_field, 'text'):
+                field = field.replace('/', '_')
+                clean_text = ProcessText.return_clean_text(nth_field.text)
+                response[field] = clean_text if not None else 'n/a'
 
     @staticmethod
     def validate_xml(xml):
         try:
-            # Make sure there is a channel element to parse
-            if xmlschema.validate(xml) is False:
-                raise ValueError("RSS is missing rss or channel element(s.)")
-
             # Make sure all required elements are present
-            for e in REQUIRED_ELEMENTS:
-                if xml.find(".//" + e) is None:
-                    raise ValueError("VALIDATION_ERROR: RSS is missing required element: {}.".format(e))
-
-            # Make sure the title and description are not too short.
-            title_len = 0
-            description_len = 0
-            if xml.find(".//description") is not None and xml.find(".//description").text is not None:
-                description_len = len(xml.find(".//description").text.split(' '))
-            if xml.find(".//title") is not None and xml.find(".//title").text is not None:
-                title_len = len(xml.find(".//title").text.split(' '))
-
-            if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
-                raise ValueError(
-                    "VALIDATION_ERROR: Minimum length(s) not met: title {}:{}, description {}:{}."
-                    .format(title_len, MIN_TITLE_LENGTH, description_len,
-                            MIN_DESCRIPTION_LENGTH))
+            for element in REQUIRED_ELEMENTS:
+                if not hasattr(xml.find(".//channel/" + element), 'text'):
+                    raise ValidationError("RSS is missing required element: {}.".format(element))
         except Exception:
             raise
+
     @staticmethod
-    def validate_response(response):
+    def validate_text_length(response):
         try:
-            # Make sure the title and description are not too short.
-            title_len = 0
-            description_len = 0
             description_len = len(response['description_cleaned'].split(' '))
             title_len = len(response['title_cleaned'].split(' '))
 
-            if description_len < int(MIN_DESCRIPTION_LENGTH) or title_len < int(MIN_TITLE_LENGTH):
-                raise ValueError(
-                    "VALIDATION_ERROR: Minimum length(s) not met: title {}:{}, description {}:{}."
+            if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
+                raise ValidationError(
+                    "Minimum length(s) not met: title {}:{}, description {}:{}."
                     .format(title_len, MIN_TITLE_LENGTH, description_len,
                             MIN_DESCRIPTION_LENGTH))
         except Exception:
             raise
 
-    def process_episodes(self, root):
+    @staticmethod
+    def process_search_fields(xml, response):
+        for e in ELEMENTS_TO_PROCESS:
+            clean_text = ProcessText(xml.find(".//channel/" + e).text, response['language'])
+            response[e + "_cleaned"] = clean_text.get_clean()
+            if e in GET_TOKENS:
+                response[e + '_lemma'] = clean_text.get_tokens()
+
+    def process_episodes(self, root, podcast_uuid):
         try:
             for item in root.iter("item"):
-                epidose_id = str(uuid.uuid5(self.namespace, str(item)))
-                if item is not None:
+                episode = {'episode_hash': str(uuid.uuid5(self.namespace, str(item))), "podcast_uuid": podcast_uuid}
+                if hasattr(item, 'text'):
                     print(item.text)
+                self.log_to_episodes(episode)
         except Exception:
             raise
 
-    def validate_language(self, root):
-        # Filter out unsupported languages
-        language = None
-        if root.find(".//language") is not None and len(root.find(".//language").text) > 0:
-            language = root.find(".//language").text.lower().split('-')[0]
-
-        if language is None:
-            language_text = root.find(".//description")
-            if language_text is not None and language_text.text is not None:
-                get_lang = self.get_language(ProcessText.return_clean_text(language_text.text))
-                if get_lang is None:
-                    raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
-                language, tolerance = get_lang
-
-            if language in LANGUAGES and tolerance > float(MIN_LANGUAGE_TOLERANCE):
-                language = language.lower().split('-')[0]
-        if language not in LANGUAGES:
-            raise ValueError("VALIDATION_ERROR: Language not supported: {}.".format(language))
-        else:
-            return language
-
     def process(self, task):
-        response = dict.fromkeys(RESPONSE_OBJECT, False)
         root = '<?xml version="1.0" encoding="UTF-8"?>'
+        # Populate fields that may or may not get populated below.  We need to keep the structure
+        # consistent, so we can use the bulk insert function of psycopg2.
+        response = {"readability": 0, "index_status": 310, "is_deleted": False, "advanced_popularity": 1,
+                    "description_selected": 0, "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a',
+                    "language": 'n/a'}
         try:
             if self.fetcher == 'kafka':
                 xml = self.get_from_s3(task['feedFilePath'])
-                response['file_name'] = task['feedFilePath']
                 root = etree.XML(xml)
+                response['file_hash'] = hashlib.md5(str(xml).encode()).hexdigest()
+                response['file_name'] = task['feedFilePath']
+
             elif self.fetcher == 'listen_notes':
                 xml = self.get_from_web(task['feedFilePath'])
-                response['file_name'] = str(uuid.uuid5(self.namespace, str(xml))) + '.rss.xml'
+                response['podcast_uuid'] = str(uuid.uuid5(self.namespace, task['feedFilePath']))
+                response['file_hash'] = hashlib.md5(str(xml).encode()).hexdigest()
+                response['file_name'] = response['file_hash'] + '.rss.xml'
+                response['rss_url'] = task['feedFilePath']
                 root = etree.XML(xml)
 
-            # Check for Duplicates
-            if self.redis.get(str(uuid.uuid5(self.namespace, str(xml)))) is None:
-                self.redis.set(str(uuid.uuid5(self.namespace, str(xml))), task['feedFilePath'])
+            previous_podcast_uuid = self.redis.get(response['file_hash'])
+            # Check for Exact Duplicates using hash of entire file string and hash of URL.
+            if previous_podcast_uuid is not None and previous_podcast_uuid == response['podcast_uuid']:
+                raise ValidationError(
+                    "File {} is a duplicate to: {}.".format(task['feedFilePath'], previous_podcast_uuid))
+            # Same Body Different URL. title says "DELETED"??
+            if previous_podcast_uuid == response['podcast_uuid']:
+                raise QuarantineError(previous_podcast_uuid)
+            # Set entry in Redis
             else:
-                raise ValueError("DUPLICATE_ERROR: File {} is a duplicate to: {}."
-                                 .format(task['feedFilePath'],
-                                         self.redis.get(str(uuid.uuid5(self.namespace, str(xml))))))
+                self.redis.set(response['file_hash'], response['podcast_uuid'])
 
+            # Make sure the doc meets basic acceptance criteria.
+            self.validate_xml(root)
+
+            # Set some basic values
+            response['language'] = ProcessText.get_language(root, self.nlp, MIN_LANGUAGE_TOLERANCE, LANGUAGES)
+            response['episode_count'] = len(list(root.iter("item")))
+            # Do the processing
+            self.process_search_fields(root, response)
+            self.validate_text_length(response)
+            self.get_extra_fields(root, response)
+            # self.process_episodes(root, response['podcast_uuid']):
+            # Get Explicit rating
+            response['is_explicit'] = ProcessText.profanity_check(response, PROFANITY_CHECK, self.profanity)
+            # Save the heavy lifting for last when we are sure everything is valid.
+            response['vector'] = pickle.dumps(ProcessText.get_vector(response[FIELD_TO_VECTOR], self.model))
+
+            # Limited by Language Functions
+            if response['language'] == 'en':
+                response['readability'] = ProcessText.get_readability(response[FIELD_FOR_READABILITY], self.nlp)
+
+            # Post response in the completed queue and S3.
             # if self.fetcher == 'listen_notes':
             # self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=response['file_name'])
 
-            # Make sure the doc meets acceptance criteria.
-            response['language'] = self.validate_language(root)
-            self.validate_xml(root)
-
-            channel = root.find(".//channel")
-            response['index_status'] = 310
-            # Set some basic values
-            response['podcast_url'] = root.find(".//link").text
-            response['episode_count'] = len(list(root.iter("item")))
-            # ADD coherence test and use chatagpt if fails
-            response['description_selected'] = 0
-
-            # PreProcess text
-            for e in ELEMENTS_TO_PROCESS:
-                clean_text = ProcessText(channel.find(".//" + e).text, self.model, response['language'])
-                response[e + "_cleaned"] = clean_text.get_clean()
-                if e in GET_TOKENS:
-                    response[e + '_lemma'] = clean_text.get_tokens()
-                if e == FIELD_TO_VECTOR:
-                    response[FIELD_TO_VECTOR + '_vector'] = pickle.dumps(clean_text.get_vector())
-
-            self.validate_response(response)
-
-            # Populate nice to have variables
-            for field in NICE_TO_HAVE:
-                if channel.find(".//" + field) is not None:
-                    text = ProcessText(channel.find(".//" + field).text, self.model, response['language'])
-                    field = field.replace('/', '_')
-                    response[field] = text.get_clean()
-
-            # Hash identifier fields
-            fields_to_hash = list(map(lambda a, r=response: r[a], FIELDS_TO_HASH))
-            concat_str = "|".join(fields_to_hash)
-            response['podcast_uuid'] = str(uuid.uuid5(self.namespace, concat_str))
-
-            for field in FIELDS_TO_HASH:
-                short_field = field.replace('_cleaned', '')
-                response['md5_' + short_field] = hashlib.md5(response[field].encode()).hexdigest()
-
-            self.is_duplicate(response)
-
-            self.redis.set(response['md5_podcast_url'], response['podcast_uuid'])
-            self.redis.set(response['md5_description'], response['podcast_uuid'])
-            self.redis.set(response['md5_title'], response['podcast_uuid'])
-
-            # Check for Profanity
-            bad_words = self.bad_words[response['language']]
-            profanity_check_str = ' '.join(
-                list(map(lambda a, r=response: r[a], PROFANITY_CHECK)))
-            self.profanity.load_censor_words(bad_words)
-            response['is_explicit'] = int(self.profanity.contains_profanity(profanity_check_str))
-
-            # English Only Functions
-            if response['language'] == 'en':
-                response['readability'] = self.get_readability(response[FIELD_FOR_READABILITY])
-
-            # Post response in the completed queue.
             with self.thread_lock:
                 self.complete_queue.put(response)
 
         except ClientError as err:
-            print(err)
-            with self.thread_lock:
-                self.error_queue.put(
-                    {"file_name": response['file_name'], "error": traceback.format_exc()})
+            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
 
-        except ValueError as err:
-            # print(err)
-            self.log_failure_record(response, root, str(err))
+        except ValidationError as err:
+            self.log_to_purgatory(response, root, str(err))
+
+        except QuarantineError as previous_podcast_uuid:
+            self.log_to_quarantine(response['podcast_uuid'], str(previous_podcast_uuid), task['feedFilePath'])
 
         except Exception as err:
-            # print(err)
-            with self.thread_lock:
-                self.error_queue.put(
-                    {"file_name": task['feedFilePath'], "error": str(err), "stack_trace": traceback.format_exc()})
+            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
