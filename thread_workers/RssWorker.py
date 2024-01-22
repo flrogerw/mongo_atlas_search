@@ -225,7 +225,7 @@ class RssWorker(threading.Thread):
                     "description_selected": 0, "author": 'n/a', "description_chatgpt": 'n/a', "image_url": 'n/a',
                     "language": 'n/a'}
         try:
-            if self.fetcher == 'kafka':
+            if self.fetcher == 'pubsub':
                 xml = self.get_from_s3(task['feedFilePath'])
                 root = etree.XML(xml)
                 response['file_hash'] = hashlib.md5(str(xml).encode()).hexdigest()

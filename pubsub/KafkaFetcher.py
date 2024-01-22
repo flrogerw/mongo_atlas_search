@@ -1,6 +1,5 @@
 import os
 import sys
-from sql.SqliteDb import Db
 from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from confluent_avro import AvroKeyValueSerde, SchemaRegistry
@@ -11,7 +10,6 @@ load_dotenv()
 KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
-JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
 
 
 class KafkaFetcher:
@@ -19,7 +17,7 @@ class KafkaFetcher:
         # Set up Consumer
         self.counter = 0
         config_parser = ConfigParser()
-        config_parser.read('./pubsub.ini')
+        config_parser.read('./pubsub/kafka.ini')
         self.config = dict(config_parser['local_consumer'])
         # Set up Schema Registry
         # registry_client = SchemaRegistry(
@@ -92,18 +90,3 @@ def fetch_all(self, jobs):
 
 def shutdown(self):
     self.running = False
-
-
-class ListenNotesFetcher:
-    def __init__(self, file_location):
-        self.db = Db(file_location)
-
-    def fetch(self, table_name, limit):
-        try:
-            offset = 0
-            columns = ["language", "rss as feedFilePath"]
-            rows = self.db.select_pagination(table_name, columns, limit, offset)
-            return rows
-
-        except Exception as err:
-            raise

@@ -23,29 +23,27 @@ KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
-FLUSH_REDIS_ON_START = os.getenv('FLUSH_REDIS_ON_START')
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 LISTEN_NOTES_DB_FILE = os.getenv('LISTEN_NOTES_DB_FILE')
 LANGUAGES = os.getenv('LANGUAGES').split(",")
+REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
 
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 good_record_count = 0
 total_record_count = 0
 namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
-# Setup Redis
-redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
-if FLUSH_REDIS_ON_START == 'True':
-    redisCli.flushdb()  # Clear hash cache
 
 errors_q = queue.Queue()
 purgatory_q = queue.Queue()
 
 config_parser = ConfigParser()
-config_parser.read('./kafka-producer.ini')
+config_parser.read('./pubsub.ini')
 config = dict(config_parser['local_producer'])
 producer = Producer(config)
 # Set up Schema Registry
@@ -93,9 +91,26 @@ def flush_queues():
         db.close_connection()
 
 
+@staticmethod
+def validate_requirements(rec):
+    try:
+        # Make sure all required elements are present
+        for element in REQUIRED_ELEMENTS:
+            if not hasattr(rec, element):
+                raise ValidationError(f"Record is missing required element: {element}.")
+
+        description_len = len(rec['description'].split(' '))
+        title_len = len(rec['title'].split(' '))
+        if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
+            raise ValidationError(
+                f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.")
+    except Exception:
+        raise
+
+
 def delivery_report(errmsg, msg):
     if errmsg is not None:
-        print("Delivery failed for Message: {} : {}".format(msg.key(), errmsg))
+        print(f"Delivery failed for Message: {msg.key()} : {errmsg}")
         return
     # print('Message: {} successfully produced to Topic: {} Partition: [{}] at offset {}'.format(
     # msg.key(), msg.topic(), msg.partition(), msg.offset()))
@@ -115,6 +130,7 @@ if __name__ == '__main__':
             message['language'] = iso.pt1
             if message['language'] not in LANGUAGES:
                 raise ValidationError(f"Language not supported: {message['language']}.")
+            validate_requirements(record)
             good_record_count += 1
             kafka_message = str(message).encode()
             producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)

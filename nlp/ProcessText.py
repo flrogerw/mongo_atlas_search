@@ -7,7 +7,6 @@ from Errors import ValidationError
 import nltk
 from nltk.corpus import wordnet
 from nltk import WordNetLemmatizer
-# from nltk.tokenize import word_tokenize
 from nlp.Grader import Grader
 from bs4 import BeautifulSoup
 import simplemma

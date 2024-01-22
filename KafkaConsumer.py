@@ -6,9 +6,9 @@ import redis
 import time
 import traceback
 from dotenv import load_dotenv
-from thread_workers.PreProcessor import PreProcessor
+from thread_workers.KafkaProcessor import KafkaProcessor
 from sql.PostgresDb import PostgresDb
-from fetchers.fetchers import ListenNotesFetcher
+from fetchers.fetchers import KafkaFetcher
 from datetime import datetime
 
 # Load System ENV VARS
@@ -17,23 +17,22 @@ KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
-FLUSH_REDIS_ON_START = os.getenv('FLUSH_REDIS_ON_START')
+FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
+REDIS_HOST = os.getenv('REDIS_HOST ')
 
 threadLock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
-record_count = 0
 # Setup Redis
-redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
-if FLUSH_REDIS_ON_START == 'True':
-    redisCli.flushdb()  # Clear hash cache
+redisCli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
+if FLUSH_REDIS_ON_START:
+    redisCli.flushdb()
 
 # Set up Queues
-jobs = queue.Queue(JOB_QUEUE_SIZE)
 errors_q = queue.Queue()
 quarantine_q = queue.Queue()
 purgatory_q = queue.Queue()
@@ -61,12 +60,13 @@ def flush_queues(logger):
     except Exception as e:
         print(e)
         with threadLock:
-            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
+            errors_q.put({"file_name": 'CONSUMER_ERROR', "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
 
 def monitor(id, stop):
+    record_count = 0
     try:
         start_time = datetime.now()
         while True:
@@ -75,13 +75,15 @@ def monitor(id, stop):
             # flush_queues(db)
             if stop():
                 break
-            print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
-                record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
-                datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
+            record_count += (errors_q.qsize() + quarantine_q.qsize() + errors_q.qsize() + purgatory_q.qsize())
+            elapsed_time = datetime.now() - start_time
+            write_time = datetime.now() - flush_start_time
+            print(f'Completed: {record_count} records, Elapsed Time: {elapsed_time} Queue Write: {write_time}')
+
     except Exception as e:
         print(e)
         with threadLock:
-            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
+            errors_q.put({"file_name": 'CONSUMER_ERROR', "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
@@ -92,25 +94,13 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = PreProcessor(jobs, errors_q, quarantine_q, purgatory_q, threadLock)
+            w = KafkaProcessor(errors_q, quarantine_q, purgatory_q, threadLock, KAFKA_TOPIC)
             # w.daemon = True
             w.start()
             threads.append(w)
-
         # Start Monitor Thread
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
-
-        fetcher = ListenNotesFetcher()
-        records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
-        with threadLock:
-            for record in records:
-                record_count += 1
-                jobs.put(record)
-                if record_count % 100000 == 0:
-                    sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
-                    sys.stdout.flush()
-        jobs.join()
-
+        # Wait for threads to finish
         for thread in threads:
             thread.join()
 

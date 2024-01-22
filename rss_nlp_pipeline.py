@@ -135,9 +135,9 @@ if __name__ == '__main__':
         # Start Monitor Thread
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
 
-        if fetcher_type == 'kafka':
+        if fetcher_type == 'pubsub':
             fetcher = KafkaFetcher(KAFKA_TOPIC)
-            fetcher.fetch(jobs)
+            fetcher.fetch_all(jobs)
         elif fetcher_type == 'listen_notes':
             fetcher = ListenNotesFetcher()
             records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)

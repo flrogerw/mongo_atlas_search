@@ -9,9 +9,11 @@ import redis
 import hashlib
 import requests
 from nlp.ProcessText import ProcessText
+from pubsub.KafkaFetcher import KafkaFetcher
 import traceback
 from dotenv import load_dotenv
 from lxml import etree
+
 
 load_dotenv()
 # Load System ENV VARS
@@ -22,28 +24,32 @@ LANGUAGES = os.getenv('LANGUAGES').split(",")
 REDIS_HOST = os.getenv('REDIS_HOST')
 REDIS_USER = os.getenv('REDIS_USER')
 REDIS_PASS = os.getenv('REDIS_PASS')
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
 
 
-class PreProcessor(threading.Thread):
-    def __init__(self, job_queue, bad_queue, quarantine_queue, purgatory_queue, thread_lock, *args, **kwargs):
+class KafkaProcessor(threading.Thread):
+    def __init__(self, bad_queue, quarantine_queue, purgatory_queue, thread_lock, topic, *args, **kwargs):
         self.thread_lock = thread_lock
         self.error_queue = bad_queue
         self.quarantine_queue = quarantine_queue
         self.purgatory_queue = purgatory_queue
-        self.job_queue = job_queue
         self.s3 = boto3.client("s3")
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
+        self.kafka_topic = topic
         super().__init__(*args, **kwargs)
 
     def run(self):
+        kafka = KafkaFetcher(self.kafka_topic)
         while True:
             try:
-                task = self.job_queue.get()
-                self.pre_process(task)
+                task = kafka.fetch_one()
+                print(task)
+                # task = self.job_queue.get()
+                #self.pre_process(task)
             except queue.Empty:
                 return
-            self.job_queue.task_done()
 
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
         # print(podcast_uuid, matching_uuid, file_name)
@@ -105,15 +111,20 @@ class PreProcessor(threading.Thread):
     def post_to_s3(self, xml, file_name):
         self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=file_name)
     @staticmethod
-    def validate_xml(xml):
+
+    @staticmethod
+    def validate_text_length(response):
         try:
-            # Make sure all required elements are present
-            for element in REQUIRED_ELEMENTS:
-                if not hasattr(xml.find(".//channel/" + element), 'text'):
-                    raise ValidationError("RSS is missing required element: {}.".format(element))
+            description_len = len(response['description_cleaned'].split(' '))
+            title_len = len(response['title_cleaned'].split(' '))
+
+            if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
+                raise ValidationError(
+                    "Minimum length(s) not met: title {}:{}, description {}:{}."
+                    .format(title_len, MIN_TITLE_LENGTH, description_len,
+                            MIN_DESCRIPTION_LENGTH))
         except Exception:
             raise
-
     def pre_process(self, task):
         try:
             xml = self.get_from_web(task['feedFilePath'])
@@ -135,9 +146,6 @@ class PreProcessor(threading.Thread):
             # Set entry in Redis
             else:
                 self.redis.set(kafka_message['file_hash'], kafka_message['podcast_uuid'])
-
-            # Make sure the doc meets basic acceptance criteria.
-            self.validate_xml(root)
 
             # Set some basic values
             # kafka_message['episode_count'] = len(list(root.iter("item")))
