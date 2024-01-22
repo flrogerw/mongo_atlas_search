@@ -1,4 +1,5 @@
 import re
+import os
 import torch
 import json
 from unidecode import unidecode
@@ -15,6 +16,7 @@ from simplemma import simple_tokenizer
 STOPWORDS = set(nltk.corpus.stopwords.words(['english', 'spanish']))
 CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
 
+print(os.getcwd())
 words = open('nlp/bad_word_list.json')
 bad_words_list = json.load(words)
 lem = WordNetLemmatizer()

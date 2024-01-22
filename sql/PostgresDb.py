@@ -49,7 +49,7 @@ class PostgresDb:
             columns = ', '.join(list_of_dicts[0].keys())
             place_holders = ','.join(['%s'] * len(list_of_dicts[0].keys()))
             insert_tuples = [tuple(d.values()) for d in list_of_dicts]
-            query = "INSERT INTO podcast.{} ({})VALUES ({})".format(table_name, columns, place_holders)
+            query = "INSERT INTO podcast.{} ({}) VALUES ({})".format(table_name, columns, place_holders)
             psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
             self.connection.commit()
         except Exception:

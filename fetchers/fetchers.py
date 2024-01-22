@@ -5,27 +5,29 @@ from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from confluent_avro import AvroKeyValueSerde, SchemaRegistry
 from confluent_avro.schema_registry import HTTPBasicAuth
+from dotenv import load_dotenv
 
+load_dotenv()
 KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
-LISTEN_NOTES_DB_FILE = os.getenv('LISTEN_NOTES_DB_FILE')
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
+
 
 class KafkaFetcher:
     def __init__(self, topic):
         # Set up Consumer
         self.counter = 0
         config_parser = ConfigParser()
-        config_parser.read('./fetchers/kafka-client.ini')
-        self.config = dict(config_parser['default'])
+        config_parser.read('./fetchers/kafka-producer.ini')
+        self.config = dict(config_parser['consumer'])
         # Set up Schema Registry
-        registry_client = SchemaRegistry(
-            KAFKA_SCHEMA_REGISTRY_URL,
-            HTTPBasicAuth(KAFKA_SCHEMA_REGISTRY_KEY, KAFKA_SCHEMA_REGISTRY_SECRET),
-            headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
-        )
-        self.avro = AvroKeyValueSerde(registry_client, topic)
+        #registry_client = SchemaRegistry(
+          #  KAFKA_SCHEMA_REGISTRY_URL,
+         #   HTTPBasicAuth(KAFKA_SCHEMA_REGISTRY_KEY, KAFKA_SCHEMA_REGISTRY_SECRET),
+          #  headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+       # )
+       # self.avro = AvroKeyValueSerde(registry_client, topic)
         self.running = True
         self.topic = topic
 
@@ -65,13 +67,13 @@ class KafkaFetcher:
 
 
 class ListenNotesFetcher:
-    def __init__(self):
-        self.db = Db(LISTEN_NOTES_DB_FILE)
+    def __init__(self, file_location):
+        self.db = Db(file_location)
 
     def fetch(self, table_name, limit):
         try:
             offset = 0
-            columns = ["rss as feedFilePath"]
+            columns = ["language", "rss as feedFilePath"]
             rows = self.db.select_pagination(table_name, columns, limit, offset)
             return rows
 
