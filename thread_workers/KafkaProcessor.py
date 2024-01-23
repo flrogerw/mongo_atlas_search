@@ -36,20 +36,25 @@ class KafkaProcessor(threading.Thread):
         self.s3 = boto3.client("s3")
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
-        self.kafka_topic = topic
+        self.kafka = KafkaFetcher(topic)
         super().__init__(*args, **kwargs)
 
     def run(self):
-        kafka = KafkaFetcher(self.kafka_topic)
-        while True:
+        print(self.kafka.fetch_all([]))
+        while False:
             try:
-                task = kafka.fetch_all([])
-                print(task)
+                task = self.kafka.fetch_all([])
+                print('XXXXX',task)
+                if task is None:
+                    #self.kafka.close_consumer()
+                    #return
+                    continue
                 # task = self.job_queue.get()
                 # self.pre_process(task)
-            except queue.Empty:
+            except Exception as e:
+                print(e)
+                self.kafka.close_consumer()
                 return
-
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
         # print(podcast_uuid, matching_uuid, file_name)
         with self.thread_lock:
@@ -109,7 +114,6 @@ class KafkaProcessor(threading.Thread):
     def post_to_s3(self, xml, file_name):
         self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=file_name)
 
-
     @staticmethod
     def validate_text_length(response):
         try:
@@ -126,12 +130,14 @@ class KafkaProcessor(threading.Thread):
 
     def pre_process(self, job):
         try:
-            xml = self.get_from_web(job['rss'])
+            print(job)
+            xml = self.get_from_web(job['rss_url'])
             root = etree.XML(xml)
             job_hash = hashlib.md5(str(xml).encode()).hexdigest()
-            hashes = {'file_hash': job_hash, 'file_name': f'{job_hash}.rss.xml', 'language': None }
+            hashes = {'file_hash': job_hash, 'file_name': f'{job_hash}.rss.xml', 'language': None}
             job.update(hashes)
             root = etree.XML(xml)
+            print(job)
             return
             previous_podcast_uuid = self.redis.get(kafka_message['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.

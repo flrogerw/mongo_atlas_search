@@ -4,7 +4,7 @@ from opensearchpy import OpenSearch, helpers
 from search.SearchQueries import SearchQueries
 import os
 from dotenv import load_dotenv
-from nlp.ProcessText import ProcessText
+# from nlp.ProcessText import ProcessText
 
 load_dotenv()
 
@@ -12,7 +12,7 @@ load_dotenv()
 class SearchClient:
     def __init__(self):
         self.queries = SearchQueries()
-        self.nlp = ProcessText
+        # self.nlp = ProcessText
         self.client = OpenSearch(
             hosts=[os.getenv('SEARCH_INSTANCE')],
             http_compress=True,
@@ -25,9 +25,9 @@ class SearchClient:
     def search_as_you_type(self, search_phrase, index, size=10):
         try:
             query = self.queries.get('search_as_you_type')
-            nlp_text = self.nlp(search_phrase)
-            query = query % (int(size), nlp_text.get_clean())
-            return self.client.search(body=query, index=index)
+            # nlp_text = self.nlp(search_phrase)
+            #query = query % (int(size), nlp_text.get_clean())
+            #return self.client.search(body=query, index=index)
         except Exception:
             raise
 

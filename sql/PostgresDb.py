@@ -1,5 +1,6 @@
 import psycopg2
 import psycopg2.extras
+from datetime import datetime
 
 
 class PostgresDb:
@@ -17,8 +18,8 @@ class PostgresDb:
             conn_string = "host={0} user={1} dbname={2} password={3}".format(self.host, self.username,
                                                                              self.database, self.password)
             self.connection = psycopg2.connect(conn_string)
-            self.cursor = self.connection.cursor()
-        except Exception:
+            self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        except Exception as e:
             raise
 
     def truncate_table(self, table_name):
@@ -53,6 +54,16 @@ class PostgresDb:
             psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
             self.connection.commit()
         except Exception:
+            raise
+
+    def select_search_fields(self, table_name, columns, lang, offset, limit):
+        try:
+            query = f"SELECT {columns} FROM podcast.{table_name} WHERE language='{lang}' ORDER BY {table_name}_id OFFSET {offset} LIMIT {limit};"
+            self.cursor.execute(query)
+            data = [dict(row) for row in self.cursor.fetchall()]
+            return data
+
+        except Exception as e:
             raise
 
     def close_connection(self):

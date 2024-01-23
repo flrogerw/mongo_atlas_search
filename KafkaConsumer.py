@@ -97,6 +97,7 @@ if __name__ == '__main__':
             w.start()
             threads.append(w)
         # Start Monitor Thread
+        print('Starting Monitor Thread')
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
         # Wait for threads to finish
         for thread in threads:

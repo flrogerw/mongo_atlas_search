@@ -21,7 +21,7 @@
                 "type": "text",
                 "index": true
             },
-            "description_vector": {
+            "vector": {
                 "type": "knn_vector",
                 "dimension": 384,
                 "method": {
