@@ -19,7 +19,9 @@ class KafkaFetcher:
         self.counter = 0
         config_parser = ConfigParser()
         config_parser.read('./pubsub/kafka.ini')
-        self.config = dict(config_parser['local_consumer'])
+        config = dict(config_parser['local_consumer'])
+        self.consumer = Consumer(config)
+        self.consumer.subscribe([topic], on_assign=self.assignment_callback)
         # Set up Schema Registry
         # registry_client = SchemaRegistry(
         #  KAFKA_SCHEMA_REGISTRY_URL,
@@ -36,12 +38,8 @@ class KafkaFetcher:
             print(f'Assigned to {p.topic}, partition {p.partition}')
 
     def fetch_one(self):
-        consumer = None
         try:
-            consumer = Consumer(self.config)
-            consumer.subscribe([self.topic], on_assign=self.assignment_callback)
-
-            msg = consumer.poll(timeout=1.0)
+            msg = self.consumer.poll(timeout=1.0)
             if msg is None:
                 return
 
@@ -53,26 +51,23 @@ class KafkaFetcher:
                 elif msg.error():
                     raise KafkaException(msg.error())
             else:
-                # print(msg.value())
-                # return msg.value()
-                val = msg.value().decode('utf8')
-                partition = msg.partition()
-                print(f'Received: {val} from partition {partition}    ')
+                return msg.value(None).decode('utf8')
+
         except KafkaException:
             raise
 
         finally:
-            consumer.poll()
-            consumer.close()
+            self.consumer.poll()
+
+    def close_consumer(self):
+        self.consumer.close()
 
     def fetch_all(self, jobs):
         try:
-            consumer = Consumer(self.config)
-            consumer.subscribe([self.topic])
-            while self.running:
-                msg = consumer.poll(timeout=1.0)
+            while True:
+                print('HERE')
+                msg = self.consumer.poll(timeout=1.0)
                 if msg is None:
-                    self.running = False
                     continue
 
                 if msg.error():
@@ -84,11 +79,6 @@ class KafkaFetcher:
                         raise KafkaException(msg.error())
                 else:
                     print(msg.value())
-                    self.counter += 1
-                    if self.counter > JOB_RECORDS_TO_PULL:
-                        self.counter = 0
-                        self.shutdown()
-                        consumer.close()
 
         except KafkaException:
             raise
