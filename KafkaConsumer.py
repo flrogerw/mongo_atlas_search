@@ -1,5 +1,4 @@
 import os
-import sys
 import threading
 import queue
 import redis
@@ -8,7 +7,6 @@ import traceback
 from dotenv import load_dotenv
 from thread_workers.KafkaProcessor import KafkaProcessor
 from sql.PostgresDb import PostgresDb
-from fetchers.fetchers import KafkaFetcher
 from datetime import datetime
 
 # Load System ENV VARS

@@ -14,7 +14,6 @@ import traceback
 from dotenv import load_dotenv
 from lxml import etree
 
-
 load_dotenv()
 # Load System ENV VARS
 UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
@@ -44,10 +43,10 @@ class KafkaProcessor(threading.Thread):
         kafka = KafkaFetcher(self.kafka_topic)
         while True:
             try:
-                task = kafka.fetch_one()
+                task = kafka.fetch_all([])
                 print(task)
                 # task = self.job_queue.get()
-                #self.pre_process(task)
+                # self.pre_process(task)
             except queue.Empty:
                 return
 
@@ -99,7 +98,6 @@ class KafkaProcessor(threading.Thread):
         except Exception:
             raise
 
-
     @staticmethod
     def get_from_web(file_path):
         try:
@@ -110,7 +108,7 @@ class KafkaProcessor(threading.Thread):
 
     def post_to_s3(self, xml, file_name):
         self.s3.put_object(Body=str(xml), Bucket=UPLOAD_BUCKET, Key=file_name)
-    @staticmethod
+
 
     @staticmethod
     def validate_text_length(response):
@@ -125,21 +123,21 @@ class KafkaProcessor(threading.Thread):
                             MIN_DESCRIPTION_LENGTH))
         except Exception:
             raise
-    def pre_process(self, task):
+
+    def pre_process(self, job):
         try:
-            xml = self.get_from_web(task['feedFilePath'])
+            xml = self.get_from_web(job['rss'])
             root = etree.XML(xml)
-            kafka_message = {'podcast_uuid': str(uuid.uuid5(self.namespace, task['feedFilePath'])),
-                             'file_hash': hashlib.md5(str(xml).encode()).hexdigest()}
-            kafka_message['file_name'] = kafka_message['file_hash'] + '.rss.xml'
-            kafka_message['language'] = None
+            job_hash = hashlib.md5(str(xml).encode()).hexdigest()
+            hashes = {'file_hash': job_hash, 'file_name': f'{job_hash}.rss.xml', 'language': None }
+            job.update(hashes)
             root = etree.XML(xml)
             return
             previous_podcast_uuid = self.redis.get(kafka_message['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
             if previous_podcast_uuid == kafka_message['podcast_uuid']:
                 raise ValidationError(
-                    "File {} is a duplicate to: {}.".format(task['feedFilePath'], previous_podcast_uuid))
+                    "File {} is a duplicate to: {}.".format(job['rss'], previous_podcast_uuid))
             # Same Body Different URL. title says "DELETED"??
             elif previous_podcast_uuid:
                 raise QuarantineError(previous_podcast_uuid)
@@ -149,19 +147,17 @@ class KafkaProcessor(threading.Thread):
 
             # Set some basic values
             # kafka_message['episode_count'] = len(list(root.iter("item")))
-            #self.post_to_s3(xml, kafka_message['file_name'])
-            #print(kafka_message)
+            # self.post_to_s3(xml, kafka_message['file_name'])
+            # print(kafka_message)
 
         except ClientError as err:
-            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
+            self.log_to_errors(job['feedFilePath'], str(err), traceback.format_exc())
 
         except ValidationError as err:
             self.log_to_purgatory(kafka_message, root, str(err))
 
         except QuarantineError as previous_podcast_uuid:
-            self.log_to_quarantine(kafka_message['podcast_uuid'], str(previous_podcast_uuid), task['feedFilePath'])
+            self.log_to_quarantine(kafka_message['podcast_uuid'], str(previous_podcast_uuid), job['feedFilePath'])
 
         except Exception as err:
-            self.log_to_errors(task['feedFilePath'], str(err), traceback.format_exc())
-
-
+            self.log_to_errors(job['feedFilePath'], str(err), traceback.format_exc())

@@ -9,7 +9,7 @@ import traceback
 from dotenv import load_dotenv
 from thread_workers.RssWorker import RssWorker
 from sql.PostgresDb import PostgresDb
-from fetchers.fetchers import KafkaFetcher, ListenNotesFetcher
+from fetchers.ListenNotesFetcher import KafkaFetcher, ListenNotesFetcher
 from datetime import datetime
 from spacy_langdetect import LanguageDetector
 from spacy.language import Language

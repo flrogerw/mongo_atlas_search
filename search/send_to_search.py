@@ -11,7 +11,7 @@ VECTOR_FIELD = os.getenv('FIELD_TO_VECTOR') + '_vector'
 
 def populate_search_queries():
     transformed = []
-    with open("search/seeds/podcast_searches.txt", "r") as file:
+    with open("seeds/podcast_searches.txt", "r") as file:
         while line := file.readline():
             transformed.append({
                 '_op_type': 'index',

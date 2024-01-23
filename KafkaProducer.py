@@ -1,6 +1,5 @@
 import os
 import uuid
-import redis
 import queue
 import hashlib
 import traceback
@@ -13,7 +12,7 @@ from confluent_avro import AvroKeyValueSerde, SchemaRegistry
 from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
-from fetchers.fetchers import ListenNotesFetcher
+from fetchers.ListenNotesFetcher import ListenNotesFetcher
 from Errors import ValidationError
 
 # Load System ENV VARS
@@ -43,7 +42,7 @@ errors_q = queue.Queue()
 purgatory_q = queue.Queue()
 
 config_parser = ConfigParser()
-config_parser.read('./pubsub.ini')
+config_parser.read('pubsub/kafka.ini')
 config = dict(config_parser['local_producer'])
 producer = Producer(config)
 # Set up Schema Registry
@@ -57,12 +56,12 @@ registry_client = SchemaRegistry(
 """
 
 
-def log_to_purgatory(message, error_string):
-    # print(error_str)
-    purgatory_q.put({"podcast_uuid": message['podcast_uuid'],
-                     "file_hash": hashlib.md5(message['rss_url'].encode()).hexdigest(),
+def log_to_purgatory(mes, error_string):
+    # print(error_string)
+    purgatory_q.put({"podcast_uuid": mes['podcast_uuid'],
+                     "file_hash": hashlib.md5(mes['rss_url'].encode()).hexdigest(),
                      "reason_for_failure": error_string,
-                     "rss_url": message['rss_url']})
+                     "rss_url": mes['rss_url']})
 
 
 def log_to_errors(file_name, error_str, stack_trace):
@@ -91,12 +90,11 @@ def flush_queues():
         db.close_connection()
 
 
-@staticmethod
 def validate_requirements(rec):
     try:
         # Make sure all required elements are present
         for element in REQUIRED_ELEMENTS:
-            if not hasattr(rec, element):
+            if element not in rec:
                 raise ValidationError(f"Record is missing required element: {element}.")
 
         description_len = len(rec['description'].split(' '))
@@ -112,20 +110,20 @@ def delivery_report(errmsg, msg):
     if errmsg is not None:
         print(f"Delivery failed for Message: {msg.key()} : {errmsg}")
         return
-    # print('Message: {} successfully produced to Topic: {} Partition: [{}] at offset {}'.format(
-    # msg.key(), msg.topic(), msg.partition(), msg.offset()))
+    print('Message: {} successfully produced to Topic: {} Partition: [{}] at offset {}'.format(
+        msg.key(), msg.topic(), msg.partition(), msg.offset()))
 
 
 if __name__ == '__main__':
     producer.poll(0)
-    fetcher = ListenNotesFetcher(f'../sql/{LISTEN_NOTES_DB_FILE}')
+    fetcher = ListenNotesFetcher(f'sql/{LISTEN_NOTES_DB_FILE}')
     records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
     start_time = datetime.now()
     for record in records:
         total_record_count += 1
         try:
-            message = {"rss_url": record['feedFilePath'], "language": record['language'],
-                       'podcast_uuid': str(uuid.uuid5(namespace, record['feedFilePath']))}
+            message = {"rss_url": record['rss'], "language": record['language'],
+                       'podcast_uuid': str(uuid.uuid5(namespace, record['rss']))}
             iso = Lang(message['language'])
             message['language'] = iso.pt1
             if message['language'] not in LANGUAGES:
@@ -135,7 +133,6 @@ if __name__ == '__main__':
             kafka_message = str(message).encode()
             producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)
             producer.poll(0)
-            # POST To Kafka
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())
             log_to_purgatory(message, str(err))
@@ -144,7 +141,7 @@ if __name__ == '__main__':
             log_to_purgatory(message, str(err))
         except Exception as err:
             print(traceback.format_exc())
-            log_to_errors(record['feedFilePath'], str(err), traceback.format_exc())
+            log_to_errors(record['rss'], str(err), traceback.format_exc())
         finally:
             end_time = datetime.now() - start_time
             pass

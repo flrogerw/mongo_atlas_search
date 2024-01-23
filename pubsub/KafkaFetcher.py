@@ -10,6 +10,7 @@ load_dotenv()
 KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
+JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
 
 
 class KafkaFetcher:
@@ -29,14 +30,20 @@ class KafkaFetcher:
         self.running = True
         self.topic = topic
 
+    @staticmethod
+    def assignment_callback(consumer, partitions):
+        for p in partitions:
+            print(f'Assigned to {p.topic}, partition {p.partition}')
+
     def fetch_one(self):
+        consumer = None
         try:
             consumer = Consumer(self.config)
-            consumer.subscribe([self.topic])
+            consumer.subscribe([self.topic], on_assign=self.assignment_callback)
 
             msg = consumer.poll(timeout=1.0)
             if msg is None:
-                return None
+                return
 
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
@@ -46,47 +53,49 @@ class KafkaFetcher:
                 elif msg.error():
                     raise KafkaException(msg.error())
             else:
-                return msg.value()
-
+                # print(msg.value())
+                # return msg.value()
+                val = msg.value().decode('utf8')
+                partition = msg.partition()
+                print(f'Received: {val} from partition {partition}    ')
         except KafkaException:
             raise
 
         finally:
+            consumer.poll()
             consumer.close()
 
+    def fetch_all(self, jobs):
+        try:
+            consumer = Consumer(self.config)
+            consumer.subscribe([self.topic])
+            while self.running:
+                msg = consumer.poll(timeout=1.0)
+                if msg is None:
+                    self.running = False
+                    continue
 
-def fetch_all(self, jobs):
-    try:
-        consumer = Consumer(self.config)
-        consumer.subscribe([self.topic])
-        while self.running:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
-                self.running = False
-                continue
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        # End of partition event
+                        sys.stderr.write('%% %s [%d] reached end at offset %d\n' %
+                                         (msg.topic(), msg.partition(), msg.offset()))
+                    elif msg.error():
+                        raise KafkaException(msg.error())
+                else:
+                    print(msg.value())
+                    self.counter += 1
+                    if self.counter > JOB_RECORDS_TO_PULL:
+                        self.counter = 0
+                        self.shutdown()
+                        consumer.close()
 
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    # End of partition event
-                    sys.stderr.write('%% %s [%d] reached end at offset %d\n' %
-                                     (msg.topic(), msg.partition(), msg.offset()))
-                elif msg.error():
-                    raise KafkaException(msg.error())
-            else:
-                jobs.put(self.avro.value.deserialize(msg.value()))
-                self.counter += 1
-                if self.counter > JOB_RECORDS_TO_PULL:
-                    self.counter = 0
-                    self.shutdown()
-                    consumer.close()
+        except KafkaException:
+            raise
+        #finally:
+            # Close down consumer to commit final offsets.
+            # consumer.close()
+            # jobs.join()
 
-    except KafkaException:
-        raise
-    finally:
-        # Close down consumer to commit final offsets.
-        # consumer.close()
-        jobs.join()
-
-
-def shutdown(self):
-    self.running = False
+    def shutdown(self):
+        self.running = False
