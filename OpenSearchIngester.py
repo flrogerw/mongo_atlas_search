@@ -92,8 +92,7 @@ if __name__ == '__main__':
         while True:
             try:
                 docs = db.select_search_fields('active', SEARCH_FIELDS, language, offset, limit)
-                if total > 5000:
-                    print('xxxx')
+                if not docs:
                     break
                 jobs_q.put(docs)
                 total += len(docs)
@@ -102,7 +101,7 @@ if __name__ == '__main__':
             except Exception:
                 break
         jobs_q.join()
-
+        print('broken out')
         # Wait for threads to finish
         for thread in threads:
             thread.join()

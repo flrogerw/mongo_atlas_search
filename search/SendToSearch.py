@@ -7,14 +7,9 @@ import pickle
 import uuid
 import threading
 import queue
-from datetime import datetime
 
 load_dotenv()
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASS')
-DB_DATABASE = os.getenv('DB_DATABASE')
-DB_HOST = os.getenv('DB_HOST')
 
 
 class SendToSearch(threading.Thread):
@@ -30,7 +25,9 @@ class SendToSearch(threading.Thread):
             try:
                 job = self.jobs_q.get()
                 self.process(job)
+                print(self.jobs_q.qsize())
             except queue.Empty:
+                print('EMPTY')
                 return
             self.jobs_q.task_done()
 
@@ -56,8 +53,8 @@ class SendToSearch(threading.Thread):
     def populate_search_titles(self, lang):
         transformed = []
         index = "search_titles"
-        db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
-        docs = db.select_search_fields('active', ['title_cleaned', 'podcast_uuid'], lang)
+        #db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
+        docs = [] #db.select_search_fields('active', ['title_cleaned', 'podcast_uuid'], lang)
         for doc in docs:
             transformed.append({
                 '_op_type': 'index',
