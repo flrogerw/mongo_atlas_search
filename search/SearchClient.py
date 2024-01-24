@@ -19,7 +19,8 @@ class SearchClient:
             use_ssl=True,
             verify_certs=False,
             ssl_assert_hostname=False,
-            ssl_show_warn=False
+            ssl_show_warn=False,
+            port=443
         )
 
     def search_as_you_type(self, search_phrase, index, size=10):

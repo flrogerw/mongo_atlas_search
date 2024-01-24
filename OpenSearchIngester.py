@@ -17,6 +17,7 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
+LIMIT=1000
 
 thread_lock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         db.connect()
         total = 0
         offset = 1
-        limit = 1000
+        limit = LIMIT
         language = 'en'
 
         while True:

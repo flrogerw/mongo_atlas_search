@@ -88,8 +88,9 @@ class SendToSearch(threading.Thread):
 
     def process(self, job):
         try:
+            search_client = SearchClient()
             transformed_data = self.populate_podcasts(job)
             # transformed_data = populate_search_titles(language)
-            self.search_client.post_to_search(transformed_data, self.index)
+            search_client.post_to_search(transformed_data, self.index)
         except Exception as e:
             print(e)
