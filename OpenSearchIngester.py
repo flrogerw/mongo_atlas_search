@@ -78,7 +78,7 @@ if __name__ == '__main__':
             if i % 2 == 0:
                 index = 'podcast_en_0'
             else:
-                index = 'podcast_en_0'
+                index = 'podcast_en_1'
             w = SendToSearch(index, jobs_q, errors_q, thread_lock)
             # w.daemon = True
             w.start()
