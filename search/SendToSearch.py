@@ -25,7 +25,6 @@ class SendToSearch(threading.Thread):
             try:
                 job = self.jobs_q.get()
                 self.process(job)
-                print(self.jobs_q.qsize())
             except queue.Empty:
                 print('EMPTY')
                 return
