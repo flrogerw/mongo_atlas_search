@@ -60,8 +60,8 @@ def populate_podcasts(docs, lang):
         return transformed
     except Exception as err:
         print(err)
-    #finally:
-        #db.close_connection()
+    finally:
+        db.close_connection()
 
 
 if __name__ == '__main__':
@@ -69,25 +69,23 @@ if __name__ == '__main__':
     language = 'en'
     db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
     db.connect()
-    records_processed = 0
-    offset = 1
+
+
+    offset = 0
     limit = 5000
     search_index = f'podcast_{language}'
     try:
         while True:
             #search_index = 'search_title'
             search_index = f'podcast_{language}'
-            docs = db.select_search_fields('active', SEARCH_FIELDS, language, offset, limit)
-            transformed_data = populate_podcasts(docs, language)
+            docs = db.select_search_fields('active', SEARCH_FIELDS, language, 0, 5000)
+            transformed_data = populate_podcasts(language)
             #transformed_data = populate_search_titles(language)
             # print(transformed_data)
-            #sc = SearchClient()
-            #sc.post_to_search(transformed_data, search_index)
-            records_processed += limit
-            offset = records_processed + 1
-            print(records_processed, datetime.now() - start_time)
-    except Exception as e:
-        print(e)
+            sc = SearchClient()
+            sc.post_to_search(transformed_data, search_index)
+            print(datetime.now() - start_time)
+    except Exception:
         raise
     finally:
         db.close_connection()
