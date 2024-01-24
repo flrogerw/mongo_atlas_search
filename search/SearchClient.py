@@ -1,5 +1,3 @@
-import json
-
 from opensearchpy import OpenSearch, helpers
 from search.SearchQueries import SearchQueries
 import os
@@ -20,7 +18,7 @@ class SearchClient:
             verify_certs=False,
             ssl_assert_hostname=False,
             ssl_show_warn=False,
-            port=443
+            timeout=30
         )
 
     def search_as_you_type(self, search_phrase, index, size=10):

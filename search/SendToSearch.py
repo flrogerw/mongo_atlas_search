@@ -1,5 +1,6 @@
 from sql.PostgresDb import PostgresDb
 from search.SearchClient import SearchClient
+from opensearchpy.exceptions import ConnectionTimeout
 from dotenv import load_dotenv
 import os
 import pickle
@@ -35,8 +36,7 @@ class SendToSearch(threading.Thread):
 
     def post_search_docs(self, transformed_data):
         try:
-            sc = SearchClient()
-            sc.post_to_search(transformed_data, self.index)
+            self.post_to_search(transformed_data, self.index)
         except Exception:
             raise
 
@@ -91,5 +91,7 @@ class SendToSearch(threading.Thread):
             transformed_data = self.populate_podcasts(job)
             # transformed_data = populate_search_titles(language)
             self.search_client.post_to_search(transformed_data, self.index)
+        except ConnectionTimeout:
+            self.jobs_q.put(job)
         except Exception as e:
             print(e)
