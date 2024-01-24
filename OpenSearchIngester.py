@@ -74,11 +74,10 @@ if __name__ == '__main__':
         print('Process Started')
         stop_monitor = False
         threads = []
+        index_count = 0
         for i in range(THREAD_COUNT):
-            if i % 2 == 0:
-                index = 'podcast_en_0'
-            else:
-                index = 'podcast_en_1'
+            index = f"podcast_en_{index_count}"
+            index_count = (index_count + 1) if index_count != 3 else 0
             w = SendToSearch(index, jobs_q, errors_q, thread_lock)
             # w.daemon = True
             w.start()

@@ -31,11 +31,6 @@ class SendToSearch(threading.Thread):
                 return
             self.jobs_q.task_done()
 
-    def post_search_docs(self, transformed_data):
-        try:
-            self.post_to_search(transformed_data, self.index)
-        except Exception:
-            raise
 
     def populate_search_queries(self):
         transformed = []
