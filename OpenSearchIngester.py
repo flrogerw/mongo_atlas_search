@@ -92,6 +92,8 @@ if __name__ == '__main__':
         while True:
             try:
                 docs = db.select_search_fields('active', SEARCH_FIELDS, language, offset, limit)
+                if offset > 1000000:
+                    print(docs)
                 jobs_q.put(docs)
                 total += limit
                 offset = total + 1
