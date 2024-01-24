@@ -17,7 +17,7 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
-LIMIT=1000
+LIMIT=500
 
 thread_lock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
@@ -59,7 +59,7 @@ def monitor(id, stop):
             record_count += 0
             elapsed_time = datetime.now() - start_time
             write_time = datetime.now() - flush_start_time
-            print(f'Completed: {record_count} records, Elapsed Time: {elapsed_time} Queue Write: {write_time}')
+            print(f'Queue Size: {jobs_q.qsize()} records, Elapsed Time: {elapsed_time}')
 
     except Exception as e:
         print(e)
