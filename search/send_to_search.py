@@ -69,7 +69,7 @@ if __name__ == '__main__':
     language = 'en'
     db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
     db.connect()
-    records_processd = 0
+    records_processed = 0
     offset = 1
     limit = 5000
     search_index = f'podcast_{language}'
@@ -83,9 +83,9 @@ if __name__ == '__main__':
             # print(transformed_data)
             #sc = SearchClient()
             #sc.post_to_search(transformed_data, search_index)
-            records_processd += limit
-            offset = records_processd + 1
-            print(records_processd, datetime.now() - start_time)
+            records_processed += limit
+            offset = records_processed + 1
+            print(records_processed, datetime.now() - start_time)
     except Exception as e:
         print(e)
         raise
