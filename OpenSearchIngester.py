@@ -21,7 +21,7 @@ LIMIT=500
 
 thread_lock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
-
+total = 0
 
 # Set up Queues
 errors_q = queue.Queue()
@@ -59,7 +59,7 @@ def monitor(id, stop):
             record_count += 0
             elapsed_time = datetime.now() - start_time
             write_time = datetime.now() - flush_start_time
-            print(f'Queue Size: {jobs_q.qsize()} records, Elapsed Time: {elapsed_time}')
+            print(f'Queue Size: {jobs_q.qsize()} records, Records Inserted: {total}, Elapsed Time: {elapsed_time}')
 
     except Exception as e:
         print(e)
@@ -85,7 +85,6 @@ if __name__ == '__main__':
 
         db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
         db.connect()
-        total = 0
         offset = 1
         limit = LIMIT
         language = 'en'
@@ -96,7 +95,6 @@ if __name__ == '__main__':
                 jobs_q.put(docs)
                 total += limit
                 offset = total + 1
-                print(total)
                 continue
             except Exception:
                 break
