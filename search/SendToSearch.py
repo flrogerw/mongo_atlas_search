@@ -95,3 +95,4 @@ class SendToSearch(threading.Thread):
             self.jobs_q.put(job)
         except Exception as e:
             print(e)
+            pass

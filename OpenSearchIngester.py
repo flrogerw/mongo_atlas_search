@@ -92,10 +92,11 @@ if __name__ == '__main__':
         while True:
             try:
                 docs = db.select_search_fields('active', SEARCH_FIELDS, language, offset, limit)
-                if not docs:
+                if total > 5000:
+                    print('xxxx')
                     break
                 jobs_q.put(docs)
-                total += limit
+                total += len(docs)
                 offset = total + 1
                 continue
             except Exception:
