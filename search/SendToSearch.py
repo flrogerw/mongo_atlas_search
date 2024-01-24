@@ -31,7 +31,6 @@ class SendToSearch(threading.Thread):
                 return
             self.jobs_q.task_done()
 
-
     def populate_search_queries(self):
         transformed = []
         with open("seeds/podcast_searches.txt", "r") as file:
@@ -48,8 +47,8 @@ class SendToSearch(threading.Thread):
     def populate_search_titles(self, lang):
         transformed = []
         index = "search_titles"
-        #db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
-        docs = [] #db.select_search_fields('active', ['title_cleaned', 'podcast_uuid'], lang)
+        # db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
+        docs = []  # db.select_search_fields('active', ['title_cleaned', 'podcast_uuid'], lang)
         for doc in docs:
             transformed.append({
                 '_op_type': 'index',
@@ -84,6 +83,7 @@ class SendToSearch(threading.Thread):
             # transformed_data = populate_search_titles(language)
             self.search_client.post_to_search(transformed_data, self.index)
         except ConnectionTimeout:
+            print('ConnectionTimeout, job sent back to queue')
             self.jobs_q.put(job)
         except Exception as e:
             print(e)
