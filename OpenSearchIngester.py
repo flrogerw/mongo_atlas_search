@@ -87,7 +87,7 @@ if __name__ == '__main__':
         db.connect()
         offset = 1
         limit = LIMIT
-        language = 'en'
+        language = 'es'
 
         while True:
             try:
