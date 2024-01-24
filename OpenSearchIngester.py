@@ -77,7 +77,7 @@ if __name__ == '__main__':
         index_count = 0
         for i in range(THREAD_COUNT):
             index = f"podcast_en_{index_count}"
-            index_count = (index_count + 1) if index_count != 3 else 0
+            index_count = (index_count + 1) if index_count < 2 else 0
             w = SendToSearch(index, jobs_q, errors_q, thread_lock)
             # w.daemon = True
             w.start()
