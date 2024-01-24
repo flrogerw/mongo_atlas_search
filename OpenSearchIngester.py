@@ -75,7 +75,11 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = SendToSearch('podcast_en', jobs_q, errors_q, thread_lock)
+            if i % 2 == 0:
+                index = 'podcast_en_0'
+            else:
+                index = 'podcast_en_0'
+            w = SendToSearch(index, jobs_q, errors_q, thread_lock)
             # w.daemon = True
             w.start()
             threads.append(w)

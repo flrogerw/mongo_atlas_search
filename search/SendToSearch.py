@@ -29,6 +29,7 @@ class SendToSearch(threading.Thread):
             except queue.Empty:
                 print('EMPTY')
                 return
+            print('DONE')
             self.jobs_q.task_done()
 
     def post_search_docs(self, transformed_data):
