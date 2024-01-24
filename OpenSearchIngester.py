@@ -10,7 +10,7 @@ from datetime import datetime
 
 # Load System ENV VARS
 load_dotenv()
-THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
+THREAD_COUNT = int(os.getenv('SEARCH_THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
