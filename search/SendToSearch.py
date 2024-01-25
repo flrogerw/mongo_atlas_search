@@ -77,10 +77,9 @@ class SendToSearch(threading.Thread):
 
     def process(self, job):
         try:
-            search_client = SearchClient()
             transformed_data = self.populate_podcasts(job)
             # transformed_data = populate_search_titles(language)
-            search_client.post_to_search(transformed_data, self.index)
+            self.search_client.post_to_search(transformed_data, self.index)
         except ConnectionTimeout:
             print('ConnectionTimeout, job sent back to queue')
             self.jobs_q.put(job)
