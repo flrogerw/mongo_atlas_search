@@ -17,7 +17,7 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
-LIMIT=500
+LIMIT = 500
 
 thread_lock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         for i in range(THREAD_COUNT):
             index = f"podcast_en_{index_count}"
             index_count = (index_count + 1) if index_count < 1 else 0
-            w = SendToSearch('podcast_en', jobs_q, errors_q, thread_lock)
+            w = SendToSearch(index, jobs_q, errors_q, thread_lock)
             # w.daemon = True
             w.start()
             threads.append(w)

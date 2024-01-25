@@ -17,7 +17,6 @@ class SendToSearch(threading.Thread):
         self.index = index
         self.jobs_q = jobs_q
         self.search_client = SearchClient()
-
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -84,6 +83,7 @@ class SendToSearch(threading.Thread):
         except ConnectionTimeout:
             print('ConnectionTimeout, job sent back to queue')
             self.jobs_q.put(job)
+            pass
         except Exception as e:
             print(e)
             pass
