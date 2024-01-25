@@ -88,7 +88,7 @@ CREATE TABLE purgatory (
     , image_url                                                                 TEXT                                           -- to OS
     , rss_url                                                                   TEXT                                          -- to OS
 ) PARTITION BY HASH (purgatory_id);
-CREATE INDEX idx_purgatoryid                                                    ON purgatory                                USING btree (purgatory_id);
+CREATE INDEX idx_purgatory_purgatory_id                                         ON purgatory                                USING btree (purgatory_id);
 CREATE TABLE purgatory_00 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 0);
 CREATE TABLE purgatory_01 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 CREATE TABLE purgatory_02 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 2);
@@ -103,7 +103,7 @@ CREATE TABLE purgatory_09 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, RE
 
 DROP TABLE IF EXISTS error_log CASCADE;
 CREATE TABLE error_log (
-      file_name                                                                 TEXT                               NOT NULL
+      file_name                                                                 TEXT                               			NOT NULL
     , error                                                                     TEXT                                        NOT NULL
     , stack_trace                                                               TEXT                                        NOT NULL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -123,21 +123,21 @@ CREATE TABLE active (
     , episode_count                                                             INTEGER                                     NOT NULL
     , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
-    , file_name                                                                 TEXT                                 NOT NULL
+    , file_name                                                                 TEXT                                 		NOT NULL
     , file_hash                                                                 TEXT                                        NOT NULL           -- hash of the entire file read as a string
-    , title_cleaned                                                             TEXT                                NOT NULL        -- to OS
-    , title_lemma                                                               TEXT                                NOT NULL        -- to OS
-    , author                                                                    TEXT                                                -- to OS
+    , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
+    , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
+    , author                                                                    TEXT                                                		-- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT                                        NOT NULL
     , description_chatgpt                                                       TEXT
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , vector                                                                    BYTEA                                       NOT NULL        -- to OS
-    , image_url                                                                 TEXT                                                -- to OS
-    , rss_url                                                                   TEXT                                NOT NULL        -- to OS
+    , image_url                                                                 TEXT                                                		-- to OS
+    , rss_url                                                                   TEXT                                		NOT NULL        -- to OS
 --    , PRIMARY KEY (active_id)
 ) PARTITION BY HASH (active_id);
-CREATE INDEX idx_active_id                                                      ON active                                   USING btree (active_id);
+CREATE INDEX idx_active_active_id                                               ON active                                   USING btree (active_id);
 CREATE TABLE active_00 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 0);
 CREATE TABLE active_01 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 CREATE TABLE active_02 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 2);
@@ -154,13 +154,13 @@ CREATE TABLE active_09 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDE
 DROP TABLE IF EXISTS quarantine CASCADE;
 CREATE TABLE quarantine (
       quarantine_id                                                             INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
+    , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , podcast_uuid                                                              UUID                                        NOT NULL
     , original_podcast_uuid                                                     UUID                                        NOT NULL
-    , duplicate_file_name                                                       TEXT                                NOT NULL
-    , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , duplicate_file_name                                                       TEXT                                		NOT NULL
     , PRIMARY KEY (quarantine_id)
 );
-CREATE UNIQUE INDEX idx_podcast_uuid       ON quarantine    USING btree (podcast_uuid);
+CREATE UNIQUE INDEX idx_quarantine_podcast_uuid       							ON quarantine    							USING btree (podcast_uuid);
 
 
 DROP TABLE IF EXISTS station CASCADE;
@@ -194,3 +194,23 @@ CREATE TABLE station (
     , PRIMARY KEY (station_uuid)
 );
 
+DROP TABLE IF EXISTS station CASCADE;
+CREATE TABLE station (
+      station_uuid                                                              UUID                                       NOT NULL
+    , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
+    , is_explicit                                                               BOOLEAN                                     NOT NULL
+    , index_status                                                              INTEGER                                     NOT NULL DEFAULT 310   CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
+    , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
+    , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
+    , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
+    , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
+    , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
+    , description_cleaned                                                       TEXT                                        NOT NULL
+    , description_chatgpt                                                       TEXT
+    , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
+    , vector                                                                    BYTEA                                       NOT NULL        -- to OS
+    , image_url                                                                 TEXT                                                		-- to OS                                                        INTEGER
+    , PRIMARY KEY (station_uuid)
+);
