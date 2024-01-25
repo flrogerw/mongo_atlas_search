@@ -17,7 +17,7 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
-LIMIT=500
+LIMIT=250
 
 thread_lock = threading.Lock()
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
