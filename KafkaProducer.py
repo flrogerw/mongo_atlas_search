@@ -131,8 +131,8 @@ if __name__ == '__main__':
             validate_requirements(record)
             good_record_count += 1
             kafka_message = str(message).encode()
-            producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)
-            producer.poll(0)
+            #producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)
+            #producer.poll(0)
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())
             log_to_purgatory(message, str(err))
