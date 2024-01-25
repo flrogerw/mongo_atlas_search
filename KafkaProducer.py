@@ -44,7 +44,7 @@ purgatory_q = queue.Queue()
 config_parser = ConfigParser()
 config_parser.read('pubsub/kafka.ini')
 config = dict(config_parser['local_producer'])
-producer = Producer(config)
+#producer = Producer(config)
 # Set up Schema Registry
 """
 registry_client = SchemaRegistry(
@@ -115,7 +115,7 @@ def delivery_report(errmsg, msg):
 
 
 if __name__ == '__main__':
-    producer.poll(0)
+    #producer.poll(0)
     fetcher = ListenNotesFetcher(f'sql/{LISTEN_NOTES_DB_FILE}')
     records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
     start_time = datetime.now()
