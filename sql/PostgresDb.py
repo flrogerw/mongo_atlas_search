@@ -66,5 +66,15 @@ class PostgresDb:
         except Exception as e:
             raise
 
+    def select_all(self, table_name, columns, limit=10000):
+        try:
+            query = f"SELECT {columns} FROM podcast.{table_name} LIMIT {limit};"
+            self.cursor.execute(query)
+            data = [dict(row) for row in self.cursor.fetchall()]
+            return data
+
+        except Exception as e:
+            raise
+
     def close_connection(self):
         self.connection.close()

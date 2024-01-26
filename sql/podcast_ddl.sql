@@ -162,53 +162,18 @@ CREATE TABLE quarantine (
 );
 CREATE UNIQUE INDEX idx_quarantine_podcast_uuid       							ON quarantine    							USING btree (podcast_uuid);
 
-
-DROP TABLE IF EXISTS station CASCADE;
-CREATE TABLE station (
-      station_uuid                                                              UUID                                       NOT NULL
-    , station_name                                                              TEXT                                       NOT NULL
-    , call_sign                                                                 TEXT                                       NOT NULL
-    , station_id                                                                INTEGER                                    NOT NULL
-    , category_id                                                               SMALLINT
-    , format_id                                                                 SMALLINT
-    , organization_id                                                           SMALLINT
-    , band_id                                                                   SMALLINT
-    , geo_position                                                              POINT
-    , date_acquired                                                             DATE
-    , date_disposed                                                             DATE
-    , has_jump2go                                                               BOOLEAN
-    , is_searchable                                                             BOOLEAN
-    , frequency                                                                 TEXT
-    , website                                                                   TEXT
-    , slug                                                                      TEXT
-    , phonetic_name                                                             TEXT
-    , slogan                                                                    TEXT
-    , description                                                               TEXT
-    , date_created                                                              TIMESTAMPTZ
-    , date_modified                                                             TIMESTAMPTZ
-    , site_slug                                                                 TEXT
-    , seo_description                                                           TEXT
-    , status                                                                    BOOLEAN
-    , is_explicit                                                               BOOLEAN
-    , publish_state_id                                                          INTEGER
-    , PRIMARY KEY (station_uuid)
-);
-
 DROP TABLE IF EXISTS station CASCADE;
 CREATE TABLE station (
       station_uuid                                                              UUID                                       NOT NULL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
-    , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
     , is_explicit                                                               BOOLEAN                                     NOT NULL
     , index_status                                                              INTEGER                                     NOT NULL DEFAULT 310   CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
-    , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
-    , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
+    , title                                                                     TEXT                                		NOT NULL        -- to OS
     , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
-    , description_cleaned                                                       TEXT                                        NOT NULL
-    , description_chatgpt                                                       TEXT
+    , description                                                               TEXT                                        NOT NULL
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , vector                                                                    BYTEA                                       NOT NULL        -- to OS
     , image_url                                                                 TEXT                                                		-- to OS                                                        INTEGER

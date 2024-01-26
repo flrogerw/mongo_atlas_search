@@ -29,7 +29,8 @@ class SendToSearch(threading.Thread):
                 return
             self.jobs_q.task_done()
 
-    def populate_search_queries(self):
+    @staticmethod
+    def populate_search_queries():
         transformed = []
         with open("seeds/podcast_searches.txt", "r") as file:
             while line := file.readline():
@@ -42,7 +43,8 @@ class SendToSearch(threading.Thread):
 
         return transformed
 
-    def populate_search_titles(self, lang):
+    @staticmethod
+    def populate_search_titles(lang):
         transformed = []
         index = "search_titles"
         # db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
