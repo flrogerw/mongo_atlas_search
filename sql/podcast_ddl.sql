@@ -65,9 +65,9 @@ CREATE TABLE container_podcast_lnk (
 );
 
 
-DROP TABLE IF EXISTS purgatory CASCADE;
-CREATE TABLE purgatory (
-      purgatory_id                                                              INTEGER                                     NOT NULL
+DROP TABLE IF EXISTS podcast_purgatory CASCADE;
+CREATE TABLE podcast_purgatory (
+      podcast_purgatory_id                                                      INTEGER                                     NOT NULL
     , podcast_uuid                                                              UUID                                                   -- to OS
     , date_created                                                              TIMESTAMPTZ                                          DEFAULT CURRENT_TIMESTAMP
     , date_modified                                                             TIMESTAMPTZ                                          DEFAULT CURRENT_TIMESTAMP
@@ -87,32 +87,50 @@ CREATE TABLE purgatory (
     , description_cleaned                                                       TEXT
     , image_url                                                                 TEXT                                           -- to OS
     , rss_url                                                                   TEXT                                          -- to OS
-) PARTITION BY HASH (purgatory_id);
-CREATE INDEX idx_purgatory_purgatory_id                                         ON purgatory                                USING btree (purgatory_id);
-CREATE TABLE purgatory_00 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 0);
-CREATE TABLE purgatory_01 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 1);
-CREATE TABLE purgatory_02 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 2);
-CREATE TABLE purgatory_03 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 3);
-CREATE TABLE purgatory_04 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 4);
-CREATE TABLE purgatory_05 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 5);
-CREATE TABLE purgatory_06 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 6);
-CREATE TABLE purgatory_07 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 7);
-CREATE TABLE purgatory_08 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 8);
-CREATE TABLE purgatory_09 PARTITION OF purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 9);
+) PARTITION BY HASH (podcast_purgatory_id);
+CREATE INDEX idx_purgatory_purgatory_id                                         ON podcast_purgatory                                USING btree (podcast_purgatory_id);
+CREATE TABLE podcast_purgatory_00 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 0);
+CREATE TABLE podcast_purgatory_01 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 1);
+CREATE TABLE podcast_purgatory_02 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 2);
+CREATE TABLE podcast_purgatory_03 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 3);
+CREATE TABLE podcast_purgatory_04 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 4);
+CREATE TABLE podcast_purgatory_05 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 5);
+CREATE TABLE podcast_purgatory_06 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 6);
+CREATE TABLE podcast_purgatory_07 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 7);
+CREATE TABLE podcast_purgatory_08 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 8);
+CREATE TABLE podcast_purgatory_09 PARTITION OF podcast_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 9);
+
+DROP TABLE IF EXISTS station_purgatory CASCADE;
+CREATE TABLE station_purgatory (
+      station_purgatory_id                                                      INTEGER                                             NOT NULL
+    , station_uuid                                                              UUID                                                   -- to OS
+    , date_created                                                              TIMESTAMPTZ                                          DEFAULT CURRENT_TIMESTAMP
+    , date_modified                                                             TIMESTAMPTZ                                          DEFAULT CURRENT_TIMESTAMP
+    , is_explicit                                                               BOOLEAN                                                         -- 0=False 1=True
+    , advanced_popularity                                                       FLOAT                                                DEFAULT 0   -- used for calculating APS
+    , reason_for_failure                                                        TEXT                                        NOT NULL
+    , title                                                                     TEXT                                           -- to OS
+    , language                                                                  VARCHAR(4)                                             -- to OS
+    , description                                                               TEXT
+    , image_url                                                                 TEXT
+    , PRIMARY KEY (station_purgatory_id)
+);
+CREATE INDEX idx_station_purgatory_station_purgatory_id                         ON station_purgatory                                USING btree (station_purgatory_id);
 
 
 DROP TABLE IF EXISTS error_log CASCADE;
 CREATE TABLE error_log (
-      file_name                                                                 TEXT                               			NOT NULL
+      identifier                                                                TEXT                               			NOT NULL
+    , entity_type                                                               VARCHAR(64)                                 NOT NULL    CHECK(entity_type IN ('station', 'podcast'))
     , error                                                                     TEXT                                        NOT NULL
     , stack_trace                                                               TEXT                                        NOT NULL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 
-DROP TABLE IF EXISTS active CASCADE;
-CREATE TABLE active (
-      active_id                                                                 INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
+DROP TABLE IF EXISTS podcast_quality CASCADE;
+CREATE TABLE podcast_quality (
+      podcast_quality_id                                                        INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
     , podcast_uuid                                                              UUID                                        NOT NULL        -- to OS
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -136,35 +154,47 @@ CREATE TABLE active (
     , image_url                                                                 TEXT                                                		-- to OS
     , rss_url                                                                   TEXT                                		NOT NULL        -- to OS
 --    , PRIMARY KEY (active_id)
-) PARTITION BY HASH (active_id);
-CREATE INDEX idx_active_active_id                                               ON active                                   USING btree (active_id);
-CREATE TABLE active_00 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 0);
-CREATE TABLE active_01 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 1);
-CREATE TABLE active_02 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 2);
-CREATE TABLE active_03 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 3);
-CREATE TABLE active_04 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 4);
-CREATE TABLE active_05 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 5);
-CREATE TABLE active_06 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 6);
-CREATE TABLE active_07 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 7);
-CREATE TABLE active_08 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 8);
-CREATE TABLE active_09 PARTITION OF active FOR VALUES WITH (MODULUS 10, REMAINDER 9);
+) PARTITION BY HASH (podcast_quality_id);
+CREATE INDEX idx_podcast_quality_id                                             ON podcast_quality                          USING btree (podcast_quality_id);
+CREATE TABLE podcast_quality_00 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 0);
+CREATE TABLE podcast_quality_01 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 1);
+CREATE TABLE podcast_quality_02 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 2);
+CREATE TABLE podcast_quality_03 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 3);
+CREATE TABLE podcast_quality_04 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 4);
+CREATE TABLE podcast_quality_05 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 5);
+CREATE TABLE podcast_quality_06 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 6);
+CREATE TABLE podcast_quality_07 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 7);
+CREATE TABLE podcast_quality_08 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 8);
+CREATE TABLE podcast_quality_09 PARTITION OF podcast_quality FOR VALUES WITH (MODULUS 10, REMAINDER 9);
 
 
 
-DROP TABLE IF EXISTS quarantine CASCADE;
-CREATE TABLE quarantine (
-      quarantine_id                                                             INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
+DROP TABLE IF EXISTS podcast_quarantine CASCADE;
+CREATE TABLE podcast_quarantine (
+      podcast_quarantine_id                                                     INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
     , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , podcast_uuid                                                              UUID                                        NOT NULL
     , original_podcast_uuid                                                     UUID                                        NOT NULL
     , duplicate_file_name                                                       TEXT                                		NOT NULL
-    , PRIMARY KEY (quarantine_id)
+    , PRIMARY KEY (podcast_quarantine_id)
 );
-CREATE UNIQUE INDEX idx_quarantine_podcast_uuid       							ON quarantine    							USING btree (podcast_uuid);
+CREATE UNIQUE INDEX idx_podcast_quarantine_podcast_uuid       					ON podcast_quarantine    					USING btree (podcast_uuid);
 
-DROP TABLE IF EXISTS station CASCADE;
-CREATE TABLE station (
-      station_uuid                                                              UUID                                       NOT NULL
+DROP TABLE IF EXISTS station_quarantine CASCADE;
+CREATE TABLE station_quarantine (
+      station_quarantine_id                                                             INTEGER                                     NOT NULL GENERATED BY DEFAULT AS IDENTITY
+    , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , station_uuid                                                              UUID                                        NOT NULL
+    , original_station_uuid                                                     UUID                                        NOT NULL
+    , PRIMARY KEY (station_quarantine_id)
+);
+CREATE UNIQUE INDEX idx_station_quarantine_podcast_uuid       					ON station_quarantine    					USING btree (station_uuid);
+
+
+DROP TABLE IF EXISTS station_quality CASCADE;
+CREATE TABLE station_quality (
+       station_quality_id                                                       INTEGER                                     NOT NULL
+    ,  station_uuid                                                             UUID                                        NOT NULL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , is_explicit                                                               BOOLEAN                                     NOT NULL
@@ -177,5 +207,6 @@ CREATE TABLE station (
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , vector                                                                    BYTEA                                       NOT NULL        -- to OS
     , image_url                                                                 TEXT                                                		-- to OS                                                        INTEGER
-    , PRIMARY KEY (station_uuid)
+    , PRIMARY KEY (station_quality_id)
 );
+CREATE UNIQUE INDEX idx_station_quality_station_uuid       					ON station_quality    					USING btree (station_uuid);

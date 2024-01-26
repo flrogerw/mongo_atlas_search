@@ -76,8 +76,8 @@ def flush_queues(logger):
             #print(active_list)
             # active_inserts = logger.append_ingest_ids('active', active_list)
             #logger.insert_many('active', active_inserts)
-        #if purgatory_list:
-            #print(purgatory_list)
+        if purgatory_list:
+            print(purgatory_list)
             # purgatory_inserts = logger.append_ingest_ids('purgatory', purgatory_list)
             #logger.insert_many('purgatory', purgatory_inserts)
         #if errors_list:
