@@ -4,3 +4,4 @@ sql/project.db-journal
 fetchers/kafka-client.ini
 /venv/
 /frontend/node_modules/
+.vercel
