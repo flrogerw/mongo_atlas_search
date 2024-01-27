@@ -1,4 +1,6 @@
 flask
+unidecode
+simplemma
 python-dotenv==1.0.1
 opensearch-py==2.3.2
 beautifulsoup4

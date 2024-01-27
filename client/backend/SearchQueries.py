@@ -3,7 +3,7 @@ import json
 
 class SearchQueries:
     def __init__(self):
-        queries = open('./queries.json')
+        queries = open('queries.json')
         self.queries = json.load(queries)
 
     def get(self, query_type):

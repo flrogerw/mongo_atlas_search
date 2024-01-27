@@ -1,5 +1,5 @@
 from opensearchpy import OpenSearch, helpers
-from backend.SearchQueries import SearchQueries
+from client.backend.SearchQueries import SearchQueries
 import os
 from dotenv import load_dotenv
 # from nlp.ProcessText import ProcessText

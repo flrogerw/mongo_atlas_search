@@ -33,6 +33,7 @@ class SearchClient:
         try:
             nlp_text = ProcessText(search_phrase)
             query = self.queries.get('hybrid')
+            return nlp_text.get_tokens()
             query = query % (int(size), nlp_text.get_tokens(), nlp_text.get_clean(), "fIBC14wBlHP3GAUwDjYR")
             return self.client.search(body=query, index=index)
         except Exception:

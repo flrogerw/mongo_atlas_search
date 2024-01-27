@@ -6,6 +6,7 @@ from nltk import WordNetLemmatizer
 from bs4 import BeautifulSoup
 import simplemma
 from simplemma import simple_tokenizer
+nltk.download('stopwords')
 
 STOPWORDS = set(nltk.corpus.stopwords.words(['english', 'spanish']))
 CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
