@@ -1,7 +1,7 @@
 {
     "mappings": {
         "properties": {
-            "podcast_uuid": {
+            "uuid": {
                 "type": "keyword",
                 "index": true
             },
@@ -28,10 +28,6 @@
                     "name": "hnsw",
                     "engine": "lucene"
                 }
-            },
-            "author": {
-                "type": "text",
-                "index": true
             },
             "is_explicit": {
                 "type": "boolean",

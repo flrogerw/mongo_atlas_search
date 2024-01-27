@@ -8,7 +8,7 @@ class Db:
         self.database = db
 
     def get_connection(self):
-        con = sqlite3.connect("sql/{}".format(self.database))
+        con = sqlite3.connect("{}".format(self.database))
         con.row_factory = sqlite3.Row
         return con
 

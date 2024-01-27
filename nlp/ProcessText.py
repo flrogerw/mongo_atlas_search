@@ -1,4 +1,5 @@
 import re
+import os
 import torch
 import json
 from unidecode import unidecode
@@ -6,7 +7,6 @@ from Errors import ValidationError
 import nltk
 from nltk.corpus import wordnet
 from nltk import WordNetLemmatizer
-# from nltk.tokenize import word_tokenize
 from nlp.Grader import Grader
 from bs4 import BeautifulSoup
 import simplemma
@@ -107,8 +107,7 @@ class ProcessText:
     def strip_text(self):
         try:
             self.clean = re.sub(r"([\r+,\n+,\t+])", ' ', re.sub(CLEANER, '', unidecode(self.raw)
-                                                                .replace('\"', "\'")
-                                                                .replace("'", "")
+                                                                .replace('\\"', "'")
                                                                 .replace('|', ' '))).replace('  ', ' ')
         except Exception:
             raise
@@ -147,9 +146,13 @@ class ProcessText:
 
     @staticmethod
     def get_language_from_model(text, nlp):
-        doc = nlp(text)
-        dl = doc._.language
-        return dl["language"], dl["score"]
+        try:
+            doc = nlp(text)
+            dl = doc._.language
+            return dl["language"], dl["score"]
+        except Exception:
+            raise
+
 
     @staticmethod
     def get_language(root, nlp, min_tolerance, languages):
