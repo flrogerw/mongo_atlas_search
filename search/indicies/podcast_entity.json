@@ -5,7 +5,7 @@
                 "type": "keyword",
                 "index": true
             },
-            "title_cleaned": {
+            "title": {
                 "type": "text",
                 "index": false
             },
@@ -13,7 +13,7 @@
                 "type": "text",
                 "index": true
             },
-            "description_cleaned": {
+            "description": {
                 "type": "text",
                 "index": false
             },
@@ -32,10 +32,6 @@
             "author": {
                 "type": "text",
                 "index": true
-            },
-            "podcast_url": {
-                "type": "text",
-                "index": false
             },
             "is_explicit": {
                 "type": "boolean",

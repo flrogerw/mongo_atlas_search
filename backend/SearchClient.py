@@ -1,5 +1,5 @@
 from opensearchpy import OpenSearch, helpers
-from backend.SearchQueries import SearchQueries
+from SearchQueries import SearchQueries
 import os
 from dotenv import load_dotenv
 # from nlp.ProcessText import ProcessText
@@ -31,25 +31,10 @@ class SearchClient:
             raise
 
     def search(self, search_phrase, index, size=10):
-
         try:
             nlp_text = self.nlp(search_phrase)
             query = self.queries.get('hybrid')
             query = query % (int(size), nlp_text.get_clean(), nlp_text.get_clean(), "fIBC14wBlHP3GAUwDjYR")
             return self.client.search(body=query, index=index)
-        except Exception:
-            raise
-
-    def post_to_search(self, docs, index):
-        try:
-            helpers.bulk(self.client, docs, index=index, raise_on_error=True, refresh=True)
-            del docs
-        except Exception:
-            raise
-
-    def create_index(self, index, mappings):
-        try:
-            res = self.client.indices.create(index=index, body=mappings, ignore=[400])
-            print(res)
         except Exception:
             raise

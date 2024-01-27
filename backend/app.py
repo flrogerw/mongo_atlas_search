@@ -1,13 +1,11 @@
 import sys
-from flask import Flask, request
-from dotenv import load_dotenv
 import json
-
-sys.path.append("..")
-from search.SearchClient import SearchClient
+from flask import Flask, request
+from SearchClient import SearchClient
+#sys.path.append("..")
 
 app = Flask(__name__)
-load_dotenv()
+#load_dotenv()
 
 
 @app.route('/update_aps', methods=["POST"])
