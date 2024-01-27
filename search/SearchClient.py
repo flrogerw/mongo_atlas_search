@@ -35,7 +35,7 @@ class SearchClient:
         try:
             nlp_text = self.nlp(search_phrase)
             query = self.queries.get('hybrid')
-            query = query % (int(size), nlp_text.get_clean(), nlp_text.get_clean(), "fIBC14wBlHP3GAUwDjYR")
+            query = query % (int(size), nlp_text.get_clean(), nlp_text.get_clean(), "pGttTI0BSrmE-sZF8kK4")
             return self.client.search(body=query, index=index)
         except Exception:
             raise
