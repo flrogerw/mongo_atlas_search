@@ -24,8 +24,8 @@ class SearchClient:
         try:
             query = self.queries.get('search_as_you_type')
             # nlp_text = self.nlp(search_phrase)
-            #query = query % (int(size), nlp_text.get_clean())
-            #return self.client.search(body=query, index=index)
+            # query = query % (int(size), nlp_text.get_clean())
+            # return self.client.search(body=query, index=index)
         except Exception:
             raise
 
@@ -33,8 +33,7 @@ class SearchClient:
         try:
             nlp_text = ProcessText(search_phrase)
             query = self.queries.get('hybrid')
-            return nlp_text.get_tokens()
-            query = query % (int(size), nlp_text.get_tokens(), nlp_text.get_clean(), "fIBC14wBlHP3GAUwDjYR")
-            return self.client.search(body=query, index=index)
+            query = query % (int(size), nlp_text.get_tokens(), nlp_text.get_clean(), "pGttTI0BSrmE-sZF8kK4")
+            return self.client.search(body=query, index='podcast_en_*')
         except Exception:
             raise

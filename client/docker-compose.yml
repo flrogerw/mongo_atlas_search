@@ -1,4 +1,3 @@
-
 version: '3'
 services:
   backend:
@@ -12,7 +11,7 @@ services:
     build:
       context: frontend
     ports:
-      - '8080:8080'
+      - '3000:3000'
     networks:
       - opensearch-net
 
