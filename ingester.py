@@ -1,4 +1,5 @@
 import os
+import csv
 import sys
 import threading
 import queue
@@ -25,11 +26,11 @@ DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
+STATIONS_CSV_FILE = os.getenv('STATIONS_CSV_FILE')
 
 threadLock = threading.Lock()
-db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 record_count = 0
-
+db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 """ Required to load properly below """
 
 
@@ -72,25 +73,19 @@ def flush_queues(logger):
             quarantine_list = list(quarantine_q.queue)
             quarantine_q.queue.clear()
 
-        #if active_list:
-            #print(active_list)
-            # active_inserts = logger.append_ingest_ids('active', active_list)
-            #logger.insert_many('active', active_inserts)
+        if active_list:
+            logger.insert_many('station_quality', active_list)
         if purgatory_list:
-            print(purgatory_list)
-            # purgatory_inserts = logger.append_ingest_ids('purgatory', purgatory_list)
-            #logger.insert_many('purgatory', purgatory_inserts)
-        #if errors_list:
-            #print(errors_list)
-            #logger.insert_many('error_log', errors_list)
-        #if quarantine_list:
-            #print(quarantine_list)
-            #logger.insert_many('quarantine', quarantine_list)
+            logger.insert_many('station_purgatory', purgatory_list)
+        if errors_list:
+            logger.insert_many('error_log', errors_list)
+        if quarantine_list:
+            logger.insert_many('station_quarantine', quarantine_list)
         logger.close_connection()
     except Exception as e:
         print(e)
         with threadLock:
-            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
+            errors_q.put({"identifier": 'PIPELINE_ERROR', "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
@@ -107,10 +102,11 @@ def monitor(id, stop):
             print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
                 record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
                 datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
+        flush_queues(db)
     except Exception as e:
         print(e)
         with threadLock:
-            errors_q.put({"file_name": 'PIPELINE_ERROR', "error": str(e),
+            errors_q.put({"identifier": 'PIPELINE_ERROR', "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
         pass
 
@@ -130,13 +126,12 @@ if __name__ == '__main__':
         # Start Monitor Thread
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
 
-        db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
-        db.connect()
-        columns = "station_uuid,station_name as title,call_sign,description,seo_description,is_explicit"
-
-        for row in db.select_all('station', columns):
-            record_count += 1
-            jobs.put(row)
+        with open(f"sql/{STATIONS_CSV_FILE}") as file:
+            reader = csv.reader(file, delimiter="\t")
+            headers = next(reader)[0:]
+            for row in reader:
+                record_count += 1
+                jobs.put({key: value for key, value in zip(headers, row[0:])})
             if record_count % 10000 == 0:
                 sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
                 sys.stdout.flush()
@@ -146,12 +141,11 @@ if __name__ == '__main__':
             thread.join()
 
         print('All Threads have Finished')
-        flush_queues(db)
         stop_monitor = True
 
     except Exception as err:
         print(traceback.format_exc())
         with threadLock:
-            errors_q.put({"file_name": 'STATION_INGESTER', "error": str(err),
+            errors_q.put({"identifier": 'STATION_INGESTER', "error": str(err),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

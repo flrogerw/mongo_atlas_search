@@ -17,13 +17,14 @@ GET_TOKENS = os.getenv('GET_TOKENS').split(",")
 FIELD_TO_VECTOR = os.getenv('FIELD_TO_VECTOR')
 ELEMENTS_TO_PROCESS = os.getenv('ELEMENTS_TO_PROCESS').split(",")
 REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
-MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
-MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
+MIN_DESC_LENGTH = int(os.getenv('MIN_STATION_DESC_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_STATION_TITLE_LENGTH'))
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 MIN_LANGUAGE_TOLERANCE = os.getenv('MIN_LANGUAGE_TOLERANCE')
 REDIS_HOST = os.getenv('REDIS_HOST')
 REDIS_USER = os.getenv('REDIS_USER')
 REDIS_PASS = os.getenv('REDIS_PASS')
+STATION_VECTOR = os.getenv('STATION_VECTOR')
 
 
 class StationProcessor(threading.Thread):
@@ -45,7 +46,7 @@ class StationProcessor(threading.Thread):
     def run(self):
         while True:
             try:
-                task = self.job_queue.get()
+                task = self.job_queue.get(timeout=1)
                 self.process(task)
             except queue.Empty:
                 return
@@ -59,9 +60,9 @@ class StationProcessor(threading.Thread):
                                        "duplicate_file_name": file_name})
 
     def log_to_errors(self, station_uuid, error_str, stack_trace):
-        print(error_str)
+        print(stack_trace)
         with self.thread_lock:
-            self.error_queue.put({"station_uuid": station_uuid,
+            self.error_queue.put({"identifier": station_uuid,
                                   "error": error_str,
                                   "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
 
@@ -74,7 +75,7 @@ class StationProcessor(threading.Thread):
                 "reason_for_failure": error,
                 "title": response['title'],
                 "description": response['description'],
-                "index_status": 320
+                "is_searchable": response['is_searchable']
             }
             with self.thread_lock:
                 self.purgatory_queue.put(log_entry)
@@ -82,33 +83,41 @@ class StationProcessor(threading.Thread):
             raise
 
     @staticmethod
+    def construct_description(response, job):
+        response['description'] = response['description'] if len(response['description']) > len(
+            job['seo_description']) else job['seo_description']
+
+    @staticmethod
     def validate_text_length(response):
         try:
-            description_len = len(response['description'].split(' '))
-            title_len = len(response['title'].split(' '))
-
-            if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
+            description_len = len(response['description'].split(' ')) if response['description'] else 0
+            title_len = len(response['title'].split(' ')) if response['title'] else 0
+            if description_len < MIN_DESC_LENGTH or title_len < MIN_TITLE_LENGTH:
                 raise ValidationError(
                     "Minimum length(s) not met: title {}:{}, description {}:{}."
                     .format(title_len, MIN_TITLE_LENGTH, description_len,
-                            MIN_DESCRIPTION_LENGTH))
+                            MIN_DESC_LENGTH))
         except Exception:
             raise
 
-    @staticmethod
-    def process_search_fields(response, job):
+    def get_tokens(self, response, job):
+        response['title_lemma'] = ProcessText(f"{job['call_sign']} {response['title']}",
+                                              response['language']).get_tokens()
+        lemma_string = f"{job['slogan']} {response['description']}" if job['slogan'] != response['description'] else response['description']
+        response['description_lemma'] = ProcessText(lemma_string, response['language']).get_tokens()
+
+    def process_search_fields(self, response):
         for e in ELEMENTS_TO_PROCESS:
-            clean_text = ProcessText(job[e], response['language'])
-            response[e + "_cleaned"] = clean_text.get_clean()
-            if e in GET_TOKENS:
-                response[e + '_lemma'] = clean_text.get_tokens()
+            clean_text = ProcessText(response[e], response['language'])
+            response[e] = clean_text.get_clean()
 
     def process(self, job):
+        job = dict((k, v if v != '(null)' else '') for k, v in job.items())
         response = {
             "station_uuid": job['station_uuid'], "is_explicit": job['is_explicit'],
-            "index_status": 310, "advanced_popularity": 1, "title": job['title'],
-            "title_lemma": 'n/a', "language": 'n/a', "description": job['description'],
-            "description_lemma": 'n/a', "vector": 'n/a', "image_url": 'n/a'
+            "is_searchable": job['is_searchable'], "index_status": 310, "advanced_popularity": 1,
+            "title": job['station_name'], "title_lemma": '-', "language": job['language'],
+            "description": job['description'], "description_lemma": '-', "vector": 'n/a', "image_url": job['image_url']
         }
 
         try:
@@ -125,15 +134,17 @@ class StationProcessor(threading.Thread):
             self.validate_text_length(response)
 
             # Set some basic values
-            response['language'] = ProcessText.get_language_from_model(job['description'], self.nlp)[0]
+            if not response['language']:
+                response['language'] = ProcessText.get_language_from_model(job['description'], self.nlp)[0]
             if response['language'] not in LANGUAGES:
                 raise ValidationError(f"Language not supported: {response['language']}.")
 
             # Do the processing
-            self.process_search_fields(response, job)
+            self.process_search_fields(response)
+            self.construct_description(response, job)
+            self.get_tokens(response, job)
             self.validate_text_length(response)
-            response['vector'] = pickle.dumps(ProcessText.get_vector(response[FIELD_TO_VECTOR], self.model))
-
+            response['vector'] = pickle.dumps(ProcessText.get_vector(response[STATION_VECTOR], self.model))
             with self.thread_lock:
                 self.complete_queue.put(response)
 

@@ -40,19 +40,11 @@ class KafkaProcessor(threading.Thread):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        print(self.kafka.fetch_all([]))
-        while False:
+        while True:
             try:
-                task = self.kafka.fetch_all([])
-                print('XXXXX',task)
-                if task is None:
-                    #self.kafka.close_consumer()
-                    #return
-                    continue
-                # task = self.job_queue.get()
-                # self.pre_process(task)
-            except Exception as e:
-                print(e)
+                task = self.job_queue.get(timeout=1)
+                self.pre_process(task)
+            except queue.Empty:
                 self.kafka.close_consumer()
                 return
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):

@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
         while True:
             try:
-                docs = db.select_search_fields('active', SEARCH_FIELDS, language, offset, limit)
+                docs = db.select_search_fields('podcast_quality', SEARCH_FIELDS, language, offset, limit)
                 if not docs:
                     break
                 jobs_q.put(docs)
