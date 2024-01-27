@@ -2,7 +2,7 @@ from opensearchpy import OpenSearch, helpers
 from SearchQueries import SearchQueries
 import os
 from dotenv import load_dotenv
-from nlp.ProcessText import ProcessText
+from ProcessText import ProcessText
 
 load_dotenv()
 
