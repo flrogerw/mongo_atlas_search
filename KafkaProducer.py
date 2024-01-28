@@ -30,8 +30,8 @@ LISTEN_NOTES_DB_FILE = os.getenv('LISTEN_NOTES_DB_FILE')
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
-MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
-MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 good_record_count = 0
@@ -44,7 +44,7 @@ purgatory_q = queue.Queue()
 config_parser = ConfigParser()
 config_parser.read('pubsub/kafka.ini')
 config = dict(config_parser['local_producer'])
-#producer = Producer(config)
+producer = Producer(config)
 # Set up Schema Registry
 """
 registry_client = SchemaRegistry(
@@ -80,7 +80,7 @@ def flush_queues():
         purgatory_q.queue.clear()
         if purgatory_list:
             purgatory_inserts = db.append_ingest_ids('purgatory', purgatory_list)
-            db.insert_many('purgatory', purgatory_inserts)
+            db.insert_many('podcast_purgatory', purgatory_inserts)
         if errors_list:
             db.insert_many('error_log', errors_list)
     except Exception:
@@ -115,15 +115,15 @@ def delivery_report(errmsg, msg):
 
 
 if __name__ == '__main__':
-    #producer.poll(0)
-    fetcher = ListenNotesFetcher(f'sql/{LISTEN_NOTES_DB_FILE}')
+    producer.poll(0)
+    fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
     records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
     start_time = datetime.now()
     for record in records:
         total_record_count += 1
         try:
             message = {"rss_url": record['rss'], "language": record['language'],
-                       'podcast_uuid': str(uuid.uuid5(namespace, record['rss']))}
+                       "podcast_uuid": str(uuid.uuid5(namespace, record['rss']))}
             iso = Lang(message['language'])
             message['language'] = iso.pt1
             if message['language'] not in LANGUAGES:
@@ -131,8 +131,8 @@ if __name__ == '__main__':
             validate_requirements(record)
             good_record_count += 1
             kafka_message = str(message).encode()
-            #producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)
-            #producer.poll(0)
+            producer.produce(topic=KAFKA_TOPIC, key=str(uuid.uuid4()), value=kafka_message, on_delivery=delivery_report)
+            producer.poll(0)
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())
             log_to_purgatory(message, str(err))

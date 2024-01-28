@@ -96,13 +96,13 @@ def monitor(id, stop):
         while True:
             time.sleep(10)
             flush_start_time = datetime.now()
-            flush_queues(db)
+            #flush_queues(db)
             if stop():
                 break
             print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
                 record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
                 datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
-        flush_queues(db)
+        #flush_queues(db)
     except Exception as e:
         print(e)
         with threadLock:
@@ -126,15 +126,15 @@ if __name__ == '__main__':
         # Start Monitor Thread
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
 
-        with open(f"sql/{STATIONS_CSV_FILE}") as file:
+        with open(f"archives/{STATIONS_CSV_FILE}") as file:
             reader = csv.reader(file, delimiter="\t")
             headers = next(reader)[0:]
             for row in reader:
                 record_count += 1
                 jobs.put({key: value for key, value in zip(headers, row[0:])})
-            if record_count % 10000 == 0:
-                sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
-                sys.stdout.flush()
+                if record_count % 10000 == 0:
+                    sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
+                    sys.stdout.flush()
         jobs.join()
 
         for thread in threads:

@@ -3,7 +3,11 @@ import threading
 import queue
 import redis
 import time
+import ast
+import json
 import traceback
+from configparser import ConfigParser
+from confluent_kafka import Consumer, KafkaError, KafkaException
 from dotenv import load_dotenv
 from thread_workers.KafkaProcessor import KafkaProcessor
 from sql.PostgresDb import PostgresDb
@@ -31,6 +35,7 @@ if FLUSH_REDIS_ON_START:
     redisCli.flushdb()
 
 # Set up Queues
+jobs_q = queue.Queue()
 errors_q = queue.Queue()
 quarantine_q = queue.Queue()
 purgatory_q = queue.Queue()
@@ -49,11 +54,11 @@ def flush_queues(logger):
 
         if purgatory_list:
             purgatory_inserts = logger.append_ingest_ids('purgatory', purgatory_list)
-            logger.insert_many('purgatory', purgatory_inserts)
+            logger.insert_many('podcast_purgatory', purgatory_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
         if quarantine_list:
-            logger.insert_many('quarantine', quarantine_list)
+            logger.insert_many('podcast_quarantine', quarantine_list)
         logger.close_connection()
     except Exception as e:
         print(e)
@@ -92,13 +97,32 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = KafkaProcessor(errors_q, quarantine_q, purgatory_q, threadLock, KAFKA_TOPIC)
+            w = KafkaProcessor(jobs_q, errors_q, quarantine_q, purgatory_q, threadLock)
             # w.daemon = True
             w.start()
             threads.append(w)
         # Start Monitor Thread
         print('Starting Monitor Thread')
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
+
+        config_parser = ConfigParser()
+        config_parser.read('./pubsub/kafka.ini')
+        config = dict(config_parser['local_consumer'])
+        consumer = Consumer(config)
+        consumer.subscribe(['processor'])
+        while True:
+            event = consumer.poll(1.0)
+            if event is None:
+                continue
+            if event.error():
+                raise KafkaException(event.error())
+            else:
+                message = event.value().decode('utf8')
+                message = ast.literal_eval(message)
+                jobs_q.put(dict(message))
+                # consumer.commit(event)
+
+
         # Wait for threads to finish
         for thread in threads:
             thread.join()

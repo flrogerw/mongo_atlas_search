@@ -23,12 +23,13 @@ LANGUAGES = os.getenv('LANGUAGES').split(",")
 REDIS_HOST = os.getenv('REDIS_HOST')
 REDIS_USER = os.getenv('REDIS_USER')
 REDIS_PASS = os.getenv('REDIS_PASS')
-MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_DESCRIPTION_LENGTH'))
-MIN_TITLE_LENGTH = int(os.getenv('MIN_TITLE_LENGTH'))
+MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
+MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 
 
 class KafkaProcessor(threading.Thread):
-    def __init__(self, bad_queue, quarantine_queue, purgatory_queue, thread_lock, topic, *args, **kwargs):
+    def __init__(self, job_queue, bad_queue, quarantine_queue, purgatory_queue, thread_lock, *args, **kwargs):
+        self.job_queue = job_queue
         self.thread_lock = thread_lock
         self.error_queue = bad_queue
         self.quarantine_queue = quarantine_queue
@@ -36,16 +37,14 @@ class KafkaProcessor(threading.Thread):
         self.s3 = boto3.client("s3")
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
-        self.kafka = KafkaFetcher(topic)
         super().__init__(*args, **kwargs)
 
     def run(self):
         while True:
             try:
-                task = self.job_queue.get(timeout=1)
+                task = self.job_queue.get(timeout=5)
                 self.pre_process(task)
             except queue.Empty:
-                self.kafka.close_consumer()
                 return
     def log_to_quarantine(self, podcast_uuid, matching_uuid, file_name):
         # print(podcast_uuid, matching_uuid, file_name)
@@ -120,22 +119,19 @@ class KafkaProcessor(threading.Thread):
         except Exception:
             raise
 
-    def pre_process(self, job):
+    def pre_process(self, kafka_message):
         try:
-            print(job)
-            xml = self.get_from_web(job['rss_url'])
+            xml = self.get_from_web(kafka_message['rss_url'])
             root = etree.XML(xml)
             job_hash = hashlib.md5(str(xml).encode()).hexdigest()
             hashes = {'file_hash': job_hash, 'file_name': f'{job_hash}.rss.xml', 'language': None}
-            job.update(hashes)
+            kafka_message.update(hashes)
             root = etree.XML(xml)
-            print(job)
-            return
             previous_podcast_uuid = self.redis.get(kafka_message['file_hash'])
             # Check for Exact Duplicates using hash of entire file string and hash of URL.
             if previous_podcast_uuid == kafka_message['podcast_uuid']:
                 raise ValidationError(
-                    "File {} is a duplicate to: {}.".format(job['rss'], previous_podcast_uuid))
+                    "File {} is a duplicate to: {}.".format(kafka_message['rss'], previous_podcast_uuid))
             # Same Body Different URL. title says "DELETED"??
             elif previous_podcast_uuid:
                 raise QuarantineError(previous_podcast_uuid)
@@ -149,13 +145,13 @@ class KafkaProcessor(threading.Thread):
             # print(kafka_message)
 
         except ClientError as err:
-            self.log_to_errors(job['feedFilePath'], str(err), traceback.format_exc())
+            self.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc())
 
         except ValidationError as err:
             self.log_to_purgatory(kafka_message, root, str(err))
 
         except QuarantineError as previous_podcast_uuid:
-            self.log_to_quarantine(kafka_message['podcast_uuid'], str(previous_podcast_uuid), job['feedFilePath'])
+            self.log_to_quarantine(kafka_message['podcast_uuid'], str(previous_podcast_uuid), kafka_message['rss_url'])
 
         except Exception as err:
-            self.log_to_errors(job['feedFilePath'], str(err), traceback.format_exc())
+            self.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc())
