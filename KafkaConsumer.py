@@ -140,16 +140,19 @@ if __name__ == '__main__':
 
         consumer = get_consumer(KAFKA_TOPIC)
         while True:
-            event = consumer.poll(1.0)
-            if event is None:
-                continue
-            if event.error():
-                raise KafkaException(event.error())
+            if jobs_q.qsize() < 1000:
+                event = consumer.poll(1.0)
+                if event is None:
+                    continue
+                if event.error():
+                    raise KafkaException(event.error())
+                else:
+                    message = event.value().decode('utf8')
+                    message = ast.literal_eval(message)
+                    jobs_q.put(dict(message))
+                    # consumer.commit(event)
             else:
-                message = event.value().decode('utf8')
-                message = ast.literal_eval(message)
-                jobs_q.put(dict(message))
-                # consumer.commit(event)
+                continue
 
         # Wait for threads to finish
         for thread in threads:
