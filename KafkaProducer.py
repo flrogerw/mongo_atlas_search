@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from fetchers.ListenNotesFetcher import ListenNotesFetcher
 from Errors import ValidationError
+from nlp.ProcessText import ProcessText
 
 # Load System ENV VARS
 load_dotenv()
@@ -66,7 +67,8 @@ def log_to_purgatory(mes, error_string):
 
 def log_to_errors(file_name, error_str, stack_trace):
     # print(error_str, stack_trace)
-    errors_q.put({"file_name": file_name,
+    errors_q.put({"identifier": file_name,
+                  "entity_type": 'podcast',
                   "error": error_str,
                   "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
 
@@ -97,8 +99,10 @@ def validate_requirements(rec):
             if element not in rec:
                 raise ValidationError(f"Record is missing required element: {element}.")
 
-        description_len = len(rec['description'].split(' '))
-        title_len = len(rec['title'].split(' '))
+        description_cleaned = rec['description']
+        title_cleaned = rec['title']
+        description_len = len(description_cleaned.split(' '))
+        title_len = len(title_cleaned.split(' '))
         if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
             raise ValidationError(
                 f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.")
@@ -122,8 +126,19 @@ if __name__ == '__main__':
     for record in records:
         total_record_count += 1
         try:
-            message = {"rss_url": record['rss'], "language": record['language'],
-                       "podcast_uuid": str(uuid.uuid5(namespace, record['rss']))}
+            message = {"rss_url": record['rss'],
+                       "language": record['language'],
+                       "is_explicit": bool(record['explicit']),
+                       "podcast_uuid": str(uuid.uuid5(namespace, record['rss'])),
+                       "author": ProcessText.return_clean_text(record['publisher']),
+                       "image_url": record['artwork_thumbnail'],
+                       "description": ProcessText.return_clean_text(record['description']),
+                       "title": ProcessText.return_clean_text(record['title']),
+                       "episode_count": record['episode_count'],
+                       "readability": 0,
+                       "description_selected": 110,
+                       "advanced_popularity": 1}
+
             iso = Lang(message['language'])
             message['language'] = iso.pt1
             if message['language'] not in LANGUAGES:
