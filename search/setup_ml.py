@@ -9,7 +9,7 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 HOST = os.getenv('SEARCH_INSTANCE')
 MODEL_ID = None
 MODEL_STATE = None
-
+print(HOST)
 upload_model = {
     "name": "huggingface/sentence-transformers/{}".format(os.getenv('VECTOR_MODEL_NAME')),
     "version": "1.0.1",

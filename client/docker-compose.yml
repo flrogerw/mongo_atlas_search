@@ -1,0 +1,19 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: backend
+    ports:
+      - '8000:8000'
+    networks:
+      - opensearch-net
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - '3000:3000'
+    networks:
+      - opensearch-net
+
+networks:
+  opensearch-net:

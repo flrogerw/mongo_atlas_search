@@ -31,15 +31,18 @@ class PostgresDb:
 
     def append_ingest_ids(self, table_name, response):
         try:
+            ingest_ids = dict()
             argument_string = str([(d['file_hash'], d['podcast_uuid']) for d in response]).strip('[]')
             self.cursor.execute(
                 "INSERT INTO podcast.ingest (file_hash, podcast_uuid) VALUES" + argument_string + "RETURNING file_hash,ingest_id")
             result_list_of_tuples = (self.cursor.fetchall())
+            for x in result_list_of_tuples:
+                ingest_ids[x['file_hash']] = x['ingest_id']
             self.connection.commit()
-            ingest_ids = dict(result_list_of_tuples)
             id_field = '{}_id'.format(table_name)
             for r in response:
                 r[id_field] = ingest_ids[r['file_hash']]
+
             return response
 
         except Exception:
@@ -49,7 +52,7 @@ class PostgresDb:
         try:
             columns = ', '.join(list_of_dicts[0].keys())
             place_holders = ','.join(['%s'] * len(list_of_dicts[0].keys()))
-            insert_tuples = [tuple(d.values()) for d in list_of_dicts]
+            insert_tuples = (tuple(d.values()) for d in list_of_dicts)
             query = "INSERT INTO podcast.{} ({}) VALUES ({})".format(table_name, columns, place_holders)
             psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
             self.connection.commit()

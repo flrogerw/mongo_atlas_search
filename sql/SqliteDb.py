@@ -4,7 +4,7 @@ import traceback
 
 
 class Db:
-    def __init__(self, db='project.db'):
+    def __init__(self, db):
         self.database = db
 
     def get_connection(self):

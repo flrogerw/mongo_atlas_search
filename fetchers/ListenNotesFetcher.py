@@ -10,7 +10,7 @@ class ListenNotesFetcher:
     def fetch(self, table_name, limit):
         try:
             offset = 0
-            columns = ["title", "description", "language", "rss"]
+            columns = ["*"]
             rows = self.db.select_pagination(table_name, columns, limit, offset)
             return rows
 
