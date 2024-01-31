@@ -25,7 +25,7 @@ MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 REDIS_HOST = os.getenv('REDIS_HOST')
 
 
-class KafkaPodcastProducer(threading.Thread):
+class PodcastProducer(threading.Thread):
     def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topic, producer, thread_lock, *args, **kwargs):
         self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.jobs_q = jobs_q

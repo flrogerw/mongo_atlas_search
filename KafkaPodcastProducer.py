@@ -13,7 +13,7 @@ from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from fetchers.ListenNotesFetcher import ListenNotesFetcher
-from thread_workers.PodcastProducer import KafkaPodcastProducer
+from thread_workers.PodcastProducer import PodcastProducer
 
 # Load System ENV VARS
 load_dotenv()
@@ -32,23 +32,22 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 
-db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 thread_lock = threading.Lock()
 good_record_count = 0
 total_record_count = 0
 
+# Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
 errors_q = queue.Queue()
 purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
-config_parser = ConfigParser()
-config_parser.read('config/kafka.ini')
-config = dict(config_parser['local_producer'])
-producer = Producer(config)
-
 redis_cli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
 if FLUSH_REDIS_ON_START:
+    redis_cli = redis.Redis(host=REDIS_HOST,
+                            port=6379,
+                            charset="utf-8",
+                            decode_responses=True)
     redis_cli.flushdb()  # Clear hash cache
 
 # Set up Schema Registry
@@ -60,6 +59,14 @@ registry_client = SchemaRegistry(
 )
 # avro = AvroKeyValueSerde(registry_client, KAFKA_TOPIC)
 """
+
+
+def get_Producer(topic=KAFKA_TOPIC):
+    config_parser = ConfigParser()
+    config_parser.read('config/kafka.ini')
+    config = dict(config_parser['local_producer'])
+    kafka_producer = Producer(config)
+    return kafka_producer
 
 
 def flush_queues(logger):
@@ -83,6 +90,7 @@ def flush_queues(logger):
 
 
 def monitor(x, stop):
+    db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
     try:
         start = datetime.now()
         while True:
@@ -108,7 +116,13 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = KafkaPodcastProducer(jobs_q, purgatory_q, errors_q, quarantine_q, KAFKA_TOPIC, producer, thread_lock)
+            w = PodcastProducer(jobs_q,
+                                purgatory_q,
+                                errors_q,
+                                quarantine_q,
+                                KAFKA_TOPIC,
+                                get_Producer(topic=KAFKA_TOPIC),
+                                thread_lock)
             w.start()
             threads.append(w)
 
@@ -127,6 +141,7 @@ if __name__ == '__main__':
         jobs_q.join()
         for thread in threads:
             thread.join()
+
         print('All Threads have Finished')
         stop_monitor = True
 

@@ -2,18 +2,6 @@
 
 ## Overview
 
-Threading in programming refers to the concurrent execution of multiple threads within a single process. It is a
-powerful technique that can significantly improve the efficiency and speed of a program by allowing multiple tasks to be
-performed simultaneously. Unlike traditional single-threaded programs, where tasks are executed sequentially, threading
-enables parallelism, which is particularly beneficial in tasks that involve heavy computation, I/O operations, or other
-time-consuming processes. By dividing a program into smaller threads, each responsible for a specific subset of tasks,
-developers can harness the full potential of multi-core processors and ensure that the CPU is utilized more effectively.
-This results in faster execution times and improved overall performance. Threading is especially valuable in scenarios
-where certain tasks can be performed independently, allowing the program to make progress on multiple fronts
-concurrently. However, it's essential to manage thread synchronization and avoid potential race conditions to ensure the
-integrity of shared data. In summary, threading is a valuable tool in programming that enhances the speed and
-responsiveness of applications by leveraging the parallel processing capabilities of modern hardware.
-
 ## Fetchers
 
 ## KafkaPodcastProducer
@@ -21,13 +9,22 @@ responsiveness of applications by leveraging the parallel processing capabilitie
 ## KafkaPodcastConsumer
 
 ## Thread Workers
+Threading in programming refers to the concurrent execution of multiple threads within a single process. It is a
+powerful technique that can significantly improve the efficiency and speed of a program by allowing multiple tasks to be
+performed simultaneously.
 
 ## Logging
+Consolidating logging within a single class offers notable benefits for code organization and maintainability. By
+encapsulating logging logic in one dedicated class, the codebase becomes more modular and adheres to the principles of
+encapsulation, isolating the logging concerns from the rest of the application. This approach ensures consistency in log
+formats, handlers, and levels throughout the entire project, simplifying debugging and log analysis.
 
 ## NLP
+Python's rich ecosystem, combined with open-source contributions and active community support, continues
+to drive advancements in NLP applications, making it a go-to language for researchers, data scientists, and developers
+working in natural language understanding and generation.
 
 ## ENV VARS
-
 Through the use of the dotenv module, we ensure
 that these environment variables are seamlessly loaded into the application's runtime environment. This not only
 bolsters security by isolating confidential information from the codebase but also facilitates effortless configuration

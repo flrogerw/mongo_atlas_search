@@ -43,7 +43,6 @@ class PodcastConsumer(threading.Thread):
     def process(self, kafka_message):
         try:
             self.get_search_fields(kafka_message)
-
             # Extra Processing goes Here
             if kafka_message['language'] == 'en':
                 kafka_message['readability'] = ProcessText.get_readability(kafka_message[READABILITY_FIELD], self.nlp)

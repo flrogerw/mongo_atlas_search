@@ -21,36 +21,30 @@ load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
-FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 
+# Set up Queues
+jobs_q = queue.Queue(JOB_QUEUE_SIZE)
+quality_q = queue.Queue()
+errors_q = queue.Queue()
+episodes_q = queue.Queue()
+
 threadLock = threading.Lock()
-db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
 
 
 def get_lang_detector(nlp, name):
     return LanguageDetector()
 
 
-# Load Language Model
+# Load Language Model and Sentence Transformer
 nlp = spacy.load(LANGUAGE_MODEL)
 Language.factory("language_detector", func=get_lang_detector)
 nlp.add_pipe('language_detector', last=True)
-
-# Setup Sentence Transformer
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
-
-# Setup Redis
-
-# Set up Queues
-jobs_q = queue.Queue(JOB_QUEUE_SIZE)
-quality_q = queue.Queue()
-errors_q = queue.Queue()
-episodes_q = queue.Queue()
 
 
 def get_consumer(topic=KAFKA_TOPIC):
@@ -85,8 +79,9 @@ def flush_queues(logger):
 
 
 def monitor(id, stop):
-    total_completed = 0
     try:
+        total_completed = 0
+        db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
         start_time = datetime.now()
         while True:
             time.sleep(10)
@@ -98,7 +93,7 @@ def monitor(id, stop):
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
 
     except Exception as e:
-        print( print(traceback.format_exc()))
+        print(print(traceback.format_exc()))
         with threadLock:
             errors_q.put({"identifier": 'CONSUMER_ERROR', "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
@@ -111,7 +106,12 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = PodcastConsumer(jobs_q, quality_q, errors_q, threadLock, nlp, model)
+            w = PodcastConsumer(jobs_q,
+                                quality_q,
+                                errors_q,
+                                threadLock,
+                                nlp,
+                                model)
             w.start()
             threads.append(w)
 
