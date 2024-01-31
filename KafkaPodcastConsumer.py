@@ -26,6 +26,7 @@ DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
+DB_SCHEMA = os.getenv('DB_SCHEMA')
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
@@ -81,7 +82,7 @@ def flush_queues(logger):
 def monitor(id, stop):
     try:
         total_completed = 0
-        db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
+        db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
         start_time = datetime.now()
         while True:
             time.sleep(10)

@@ -5,19 +5,24 @@ from datetime import datetime
 
 class PostgresDb:
 
-    def __init__(self, username, password, database, host):
+    def __init__(self, username, password, database, host, schema):
         self.cursor = None
         self.connection = None
         self.database = database
         self.username = username
         self.password = password
+        self.schema = schema
         self.host = host
 
     def connect(self):
         try:
-            conn_string = "host={0} user={1} dbname={2} password={3}".format(self.host, self.username,
-                                                                             self.database, self.password)
-            self.connection = psycopg2.connect(conn_string)
+            conn_string = f"host={self.host} user={self.username} dbname={self.database} password={self.password} --search_path={self.schema}"
+
+            self.connection = psycopg2.connect(host=self.host,
+                                               user=self.username,
+                                               dbname=self.database,
+                                               password=self.password,
+                                               options=f'-c search_path={self.schema}')
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         except Exception as e:
             raise
@@ -34,7 +39,7 @@ class PostgresDb:
             ingest_ids = dict()
             argument_string = str([(d['file_hash'], d['podcast_uuid']) for d in response]).strip('[]')
             self.cursor.execute(
-                "INSERT INTO podcast.ingest (file_hash, podcast_uuid) VALUES" + argument_string + "RETURNING file_hash,ingest_id")
+                "INSERT INTO ingest (file_hash, podcast_uuid) VALUES" + argument_string + "RETURNING file_hash,ingest_id")
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
                 ingest_ids[x['file_hash']] = x['ingest_id']
@@ -53,7 +58,7 @@ class PostgresDb:
             columns = ', '.join(list_of_dicts[0].keys())
             place_holders = ','.join(['%s'] * len(list_of_dicts[0].keys()))
             insert_tuples = (tuple(d.values()) for d in list_of_dicts)
-            query = "INSERT INTO podcast.{} ({}) VALUES ({})".format(table_name, columns, place_holders)
+            query = "INSERT INTO {} ({}) VALUES ({})".format(table_name, columns, place_holders)
             psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
             self.connection.commit()
         except Exception:
@@ -61,7 +66,7 @@ class PostgresDb:
 
     def select_search_fields(self, table_name, columns, lang, offset, limit):
         try:
-            query = f"SELECT {columns} FROM podcast.{table_name} WHERE language='{lang}' ORDER BY {table_name}_id OFFSET {offset} LIMIT {limit};"
+            query = f"SELECT {columns} FROM {table_name} WHERE language='{lang}' ORDER BY {table_name}_id OFFSET {offset} LIMIT {limit};"
             self.cursor.execute(query)
             data = [dict(row) for row in self.cursor.fetchall()]
             return data
@@ -71,7 +76,7 @@ class PostgresDb:
 
     def select_all(self, table_name, columns, limit=10000):
         try:
-            query = f"SELECT {columns} FROM podcast.{table_name} LIMIT {limit};"
+            query = f"SELECT {columns} FROM {table_name} LIMIT {limit};"
             self.cursor.execute(query)
             data = [dict(row) for row in self.cursor.fetchall()]
             return data

@@ -143,7 +143,6 @@ CREATE TABLE podcast_quality (
     , episode_count                                                             INTEGER                                     NOT NULL
     , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
-    , file_name                                                                 TEXT                                 		NOT NULL
     , file_hash                                                                 TEXT                                        NOT NULL           -- hash of the entire file read as a string
     , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
     , title_lemma                                                               TEXT                                		NOT NULL        -- to OS

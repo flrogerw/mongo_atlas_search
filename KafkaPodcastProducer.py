@@ -26,6 +26,7 @@ DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
+DB_SCHEMA = os.getenv('DB_SCHEMA')
 LISTEN_NOTES_DB_FILE = os.getenv('LISTEN_NOTES_DB_FILE')
 FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 REDIS_HOST = os.getenv('REDIS_HOST')
@@ -42,7 +43,6 @@ errors_q = queue.Queue()
 purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
-redis_cli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
                             port=6379,
@@ -61,7 +61,7 @@ registry_client = SchemaRegistry(
 """
 
 
-def get_Producer(topic=KAFKA_TOPIC):
+def get_Producer():
     config_parser = ConfigParser()
     config_parser.read('config/kafka.ini')
     config = dict(config_parser['local_producer'])
@@ -90,7 +90,7 @@ def flush_queues(logger):
 
 
 def monitor(x, stop):
-    db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
+    db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
     try:
         start = datetime.now()
         while True:
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                                 errors_q,
                                 quarantine_q,
                                 KAFKA_TOPIC,
-                                get_Producer(topic=KAFKA_TOPIC),
+                                get_Producer(),
                                 thread_lock)
             w.start()
             threads.append(w)
