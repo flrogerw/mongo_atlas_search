@@ -36,6 +36,18 @@ class ProcessText:
         return self.tokens
 
     @staticmethod
+    def return_lemma(text, language):
+        try:
+            text = text.translate({ord(char): ord(' ') for char in filters})
+            # s = s.lower()
+            text = " ".join(text.split()).lower().strip(" ")
+            #s = s.strip(" ")
+            tokens = simple_tokenizer(text)
+            return " ".join([simplemma.lemmatize(t, lang=language) for t in tokens])
+        except Exception:
+            raise
+
+    @staticmethod
     def return_clean_text(text):
         try:
             clean_text = BeautifulSoup(text, "html5lib").get_text()
@@ -152,7 +164,6 @@ class ProcessText:
             return dl["language"], dl["score"]
         except Exception:
             raise
-
 
     @staticmethod
     def get_language(root, nlp, min_tolerance, languages):
