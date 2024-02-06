@@ -128,7 +128,6 @@ if __name__ == '__main__':
                                 get_Producer(),
                                 thread_lock,
                                 text_processor)
-            w.start()
             threads.append(w)
 
         fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
@@ -142,6 +141,10 @@ if __name__ == '__main__':
         # Start Monitor Thread
         print('Starting Monitor Thread')
         threading.Thread(target=monitor, args=('place_holder', lambda: stop_monitor)).start()
+
+        print('Starting Worker Threads')
+        for thread in threads:
+            thread.start()
 
         jobs_q.join()
         for thread in threads:
