@@ -43,6 +43,8 @@ errors_q = queue.Queue()
 purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
+db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
+
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
                             port=6379,
@@ -84,13 +86,13 @@ def flush_queues(logger):
         if errors_list:
             logger.insert_many('error_log', errors_list)
     except Exception:
-        print(traceback.format_exc())
+        raise
         pass
+
     logger.close_connection()
 
 
 def monitor(x, stop):
-    db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
     try:
         start = datetime.now()
         while True:
@@ -100,14 +102,14 @@ def monitor(x, stop):
                 break
             elapsed_time = datetime.now() - start
             print(f'Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
-        flush_queues(db)
-
     except Exception as e:
         print(print(traceback.format_exc()))
         with thread_lock:
-            errors_q.put({"identifier": 'PODCAST_PRODUCER_ERROR', "error": str(e),
+            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
+                          "entity_type": 555,
+                          "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
-        pass
+            pass
 
 
 if __name__ == '__main__':
@@ -144,10 +146,5 @@ if __name__ == '__main__':
 
         print('All Threads have Finished')
         stop_monitor = True
-
     except Exception as err:
-        # print(traceback.format_exc())
-        with thread_lock:
-            errors_q.put({"identifier": 'PIPELINE_ERROR', "error": str(err),
-                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
-            pass
+        print(traceback.format_exc())

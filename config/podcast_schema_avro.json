@@ -1,0 +1,72 @@
+{
+  "type": "record",
+  "fields": [
+	 {
+		"name": "rss_url",
+		"type": "string"
+	  },
+	  {
+		"name": "language",
+		"type": "string"
+	  },
+	  {
+		"name": "is_explicit",
+		"type": "int"
+	  },
+	  {
+		"name": "podcast_uuid",
+		"type": "string"
+	  },
+	  {
+		"name": "author",
+		"type": "string"
+	  },
+	  {
+		"name": "image_url",
+		"type": "string"
+	  },
+	  {
+		"name": "description_cleaned",
+		"type": "string"
+	  },
+	  {
+		"name": "title_cleaned",
+		"type": "string"
+	  },
+	  {
+		"name": "episode_count",
+		"type": "int"
+	  },
+	  {
+		"name": "readability",
+		"type": "int"
+	  },
+	  {
+		"name": "description_selected",
+		"type": "int"
+	  },
+	  {
+		"name": "advanced_popularity",
+		"type": "float"
+	  },
+	  {
+		"name": "record_hash",
+		"type": "string"
+	  }
+  ],
+  "required": [
+    "rss_url",
+    "language",
+    "is_explicit",
+    "podcast_uuid",
+    "publisher",
+    "image_url",
+    "description_cleaned",
+    "title_cleaned",
+    "episode_count",
+    "readability",
+    "description_selected",
+    "advanced_popularity",
+    "record_hash"
+  ]
+}

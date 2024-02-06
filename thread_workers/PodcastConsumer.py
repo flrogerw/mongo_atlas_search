@@ -23,7 +23,6 @@ class PodcastConsumer(threading.Thread):
         self.job_queue = jobs_q
         self.quality_q = quality_q
         self.thread_lock = thread_lock
-
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -50,4 +49,4 @@ class PodcastConsumer(threading.Thread):
             with self.thread_lock:
                 self.quality_q.put(kafka_message)
         except Exception as err:
-            self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc())
+            self.logger.log_to_errors(kafka_message['rss_url'], err, traceback.format_exc(), 555)

@@ -13,13 +13,13 @@ class ErrorLogger:
         except Exception:
             raise
 
-    def log_to_errors(self, file_name, error_str, stack_trace):
+    def log_to_errors(self, entity_identifier, error_str, stack_trace, entity_type):
         print(stack_trace)
         try:
             with self.thread_lock:
                 # print(error_str, stack_trace)
-                self.errors_q.put({"identifier": file_name,
-                                   "entity_type": 'podcast',
+                self.errors_q.put({"entity_identifier": entity_identifier,
+                                   "entity_type": entity_type,
                                    "error": error_str,
                                    "stack_trace": stack_trace.replace("\x00", "\uFFFD")})
         except Exception:

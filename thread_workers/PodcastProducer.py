@@ -69,19 +69,21 @@ class PodcastProducer(threading.Thread):
                        "language": record['language'],
                        "is_explicit": bool(record['explicit']),
                        "podcast_uuid": str(uuid.uuid5(self.namespace, record['rss'])),
-                       "author": ProcessText.return_clean_text(record['publisher']),
+                       "publisher": ProcessText.return_clean_text(record['publisher']),
                        "image_url": record['artwork_thumbnail'],
                        "description_cleaned": ProcessText.return_clean_text(record['description']),
                        "title_cleaned": ProcessText.return_clean_text(record['title']),
                        "episode_count": record['episode_count'],
                        "readability": 0,
+                       "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
+                       if record['listen_score_global_rank'] else 0,
                        "description_selected": 110,
-                       "advanced_popularity": 1}
+                       "advanced_popularity": 1,
+                       "record_hash": hashlib.md5(str(record).encode()).hexdigest()}
 
-            job_hash = hashlib.md5(str(record).encode()).hexdigest()
-            message.update({'file_hash': job_hash, 'file_name': f'{job_hash}.rss.xml'})
+
             # Check for Previous Instance in Redis
-            previous_podcast_uuid = self.redis_cli.get(message['file_hash'])
+            previous_podcast_uuid = self.redis_cli.get(message['record_hash'])
             # Check for Exact Duplicates using hash of entire record string and hash of Rss URL.
             if previous_podcast_uuid == message['podcast_uuid']:
                 raise ValidationError(
@@ -92,7 +94,7 @@ class PodcastProducer(threading.Thread):
                 raise QuarantineError(previous_podcast_uuid)
             # Set entry in Redis
             else:
-                self.redis_cli.set(message['file_hash'], message['podcast_uuid'])
+                self.redis_cli.set(message['record_hash'], message['podcast_uuid'])
 
             iso = Lang(message['language'])
             message['language'] = iso.pt1
@@ -113,9 +115,9 @@ class PodcastProducer(threading.Thread):
             self.logger.log_to_quarantine(message, str(previous_podcast_uuid))
         except KafkaException as err:
             # print(traceback.format_exc())
-            self.logger.log_to_errors(message['podcast_uuid'], str(err), traceback.format_exc())
+            self.logger.log_to_errors(message['podcast_uuid'], err, traceback.format_exc(), 555)
         except Exception as err:
-            # print(traceback.format_exc())
-            self.logger.log_to_errors(message['podcast_uuid'], str(err), traceback.format_exc())
+            print(traceback.format_exc())
+            self.logger.log_to_errors(message['podcast_uuid'], err, traceback.format_exc(), 555)
         finally:
             pass

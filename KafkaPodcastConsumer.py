@@ -34,7 +34,7 @@ quality_q = queue.Queue()
 errors_q = queue.Queue()
 episodes_q = queue.Queue()
 
-threadLock = threading.Lock()
+thread_lock = threading.Lock()
 
 
 def get_lang_detector(nlp, name):
@@ -60,7 +60,7 @@ def get_consumer(topic=KAFKA_TOPIC):
 def flush_queues(logger):
     try:
         logger.connect()
-        with threadLock:
+        with thread_lock:
             quality_list = list(quality_q.queue)
             quality_q.queue.clear()
             errors_list = list(errors_q.queue)
@@ -73,10 +73,12 @@ def flush_queues(logger):
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
     except Exception as e:
-        print('DB', print(traceback.format_exc()))
-        with threadLock:
-            errors_q.put({"identifier": 'PODCAST_CONSUMER_ERROR', "entity_type": "podcast", "error": str(e),
+        with thread_lock:
+            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
+                          "entity_type": 555,
+                          "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
+            pass
 
 
 def monitor(id, stop):
@@ -92,13 +94,14 @@ def monitor(id, stop):
                 break
             elapsed_time = datetime.now() - start_time
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
-
     except Exception as e:
         print(print(traceback.format_exc()))
-        with threadLock:
-            errors_q.put({"identifier": 'CONSUMER_ERROR', "error": str(e),
+        with thread_lock:
+            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
+                          "entity_type": 555,
+                          "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
-        pass
+            pass
 
 
 if __name__ == '__main__':
@@ -110,7 +113,7 @@ if __name__ == '__main__':
             w = PodcastConsumer(jobs_q,
                                 quality_q,
                                 errors_q,
-                                threadLock,
+                                thread_lock,
                                 nlp,
                                 model)
             w.start()
@@ -149,7 +152,9 @@ if __name__ == '__main__':
 
     except Exception as err:
         print(traceback.format_exc())
-        with threadLock:
-            errors_q.put({"identifier": 'PIPELINE_ERROR', "error": str(err),
+        with thread_lock:
+            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
+                          "entity_type": 555,
+                          "error": err,
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
