@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from fetchers.ListenNotesFetcher import ListenNotesFetcher
 from thread_workers.PodcastProducer import PodcastProducer
+from nlp.ProcessText import ProcessText
 
 # Load System ENV VARS
 load_dotenv()
@@ -34,6 +35,7 @@ THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 
 thread_lock = threading.Lock()
+text_processor = ProcessText
 good_record_count = 0
 total_record_count = 0
 
@@ -124,7 +126,8 @@ if __name__ == '__main__':
                                 quarantine_q,
                                 KAFKA_TOPIC,
                                 get_Producer(),
-                                thread_lock)
+                                thread_lock,
+                                text_processor)
             w.start()
             threads.append(w)
 

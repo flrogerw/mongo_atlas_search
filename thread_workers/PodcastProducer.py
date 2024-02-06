@@ -12,7 +12,6 @@ from confluent_avro import AvroKeyValueSerde, SchemaRegistry
 from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from Errors import ValidationError, QuarantineError
-from nlp.ProcessText import ProcessText
 from logger.Logger import ErrorLogger
 
 load_dotenv()
@@ -26,10 +25,11 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 
 
 class PodcastProducer(threading.Thread):
-    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topic, producer, thread_lock, *args, **kwargs):
+    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topic, producer, thread_lock, text_processor , *args, **kwargs):
         self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.jobs_q = jobs_q
         self.topic = topic
+        self.text_processor = text_processor
         self.producer = producer
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
         self.redis_cli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
@@ -69,10 +69,10 @@ class PodcastProducer(threading.Thread):
                        "language": record['language'],
                        "is_explicit": bool(record['explicit']),
                        "podcast_uuid": str(uuid.uuid5(self.namespace, record['rss'])),
-                       "publisher": ProcessText.return_clean_text(record['publisher']),
+                       "publisher": self.text_processor.return_clean_text(record['publisher']),
                        "image_url": record['artwork_thumbnail'],
-                       "description_cleaned": ProcessText.return_clean_text(record['description']),
-                       "title_cleaned": ProcessText.return_clean_text(record['title']),
+                       "description_cleaned": self.text_processor.return_clean_text(record['description']),
+                       "title_cleaned": self.text_processor.return_clean_text(record['title']),
                        "episode_count": record['episode_count'],
                        "readability": 0,
                        "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
