@@ -9,7 +9,7 @@ import sys
 from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaException, KafkaError
 from dotenv import load_dotenv
-from thread_workers.PodcastConsumer import PodcastConsumer
+from thread_workers.EpisodeConsumer import EpisodeConsumer
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
 from spacy_langdetect import LanguageDetector
@@ -18,7 +18,7 @@ from sentence_transformers import SentenceTransformer
 
 # Load System ENV VARS
 load_dotenv()
-KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+KAFKA_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
@@ -52,7 +52,7 @@ def get_consumer(topic=KAFKA_TOPIC):
     config_parser = ConfigParser()
     config_parser.read('./config/kafka.ini')
     config = dict(config_parser['local_consumer'])
-    config['group.id'] = 'podcast_consumer'
+    config['group.id'] = 'episode_consumer'
     kafka_consumer = Consumer(config)
     kafka_consumer.subscribe([topic])
     return kafka_consumer
@@ -69,7 +69,7 @@ def flush_queues(logger):
 
         if quality_list:
             quality_inserts = logger.append_ingest_ids('podcast_quality', quality_list)
-            logger.insert_many('podcast_quality', quality_inserts)
+            logger.insert_many('episode_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
@@ -107,11 +107,11 @@ def monitor(id, stop):
 
 if __name__ == '__main__':
     try:
-        print('Kafka Podcast Consumer Started')
+        print('Kafka Episode Consumer Started')
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = PodcastConsumer(jobs_q,
+            w = EpisodeConsumer(jobs_q,
                                 quality_q,
                                 errors_q,
                                 thread_lock,

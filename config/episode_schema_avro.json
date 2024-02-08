@@ -14,7 +14,7 @@
 		"type": "int"
 	  },
 	  {
-		"name": "podcast_uuid",
+		"name": "episode_uuid",
 		"type": "string"
 	  },
 	  {
@@ -34,8 +34,8 @@
 		"type": "string"
 	  },
 	  {
-		"name": "episode_count",
-		"type": "int"
+		"name": "podcast_uuid",
+		"type": "string"
 	  },
 	  {
 		"name": "readability",

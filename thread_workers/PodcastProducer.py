@@ -25,10 +25,11 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 
 
 class PodcastProducer(threading.Thread):
-    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topic, producer, thread_lock, text_processor , *args, **kwargs):
+    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topics, producer, thread_lock, text_processor, *args,
+                 **kwargs):
         self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.jobs_q = jobs_q
-        self.topic = topic
+        self.topics = topics
         self.text_processor = text_processor
         self.producer = producer
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
@@ -58,6 +59,18 @@ class PodcastProducer(threading.Thread):
         except Exception:
             raise
 
+    def get_episodes(self, msg):
+        episode_message = {
+            "rss_url": msg['rss'],
+            "language": msg['language'],
+            "is_explicit": msg['explicit'],
+            "podcast_uuid": msg['rss'],
+            "publisher": msg['publisher']}
+
+        kafka_message = str(episode_message).encode()
+        self.producer.produce(topic=self.topics['episodes'], key=str(uuid.uuid4()), value=kafka_message,
+                              on_delivery=self.delivery_report)
+
     def process(self, record):
         try:
             # Make sure all required elements are present
@@ -81,7 +94,6 @@ class PodcastProducer(threading.Thread):
                        "advanced_popularity": 1,
                        "record_hash": hashlib.md5(str(record).encode()).hexdigest()}
 
-
             # Check for Previous Instance in Redis
             previous_podcast_uuid = self.redis_cli.get(message['record_hash'])
             # Check for Exact Duplicates using hash of entire record string and hash of Rss URL.
@@ -102,8 +114,10 @@ class PodcastProducer(threading.Thread):
                 raise ValidationError(f"Language not supported: {message['language']}.")
             self.validate_minimums(message)
             kafka_message = str(message).encode()
-            self.producer.produce(topic=self.topic, key=str(uuid.uuid4()), value=kafka_message,
+            self.producer.produce(topic=self.topics['podcasts'], key=str(uuid.uuid4()), value=kafka_message,
                                   on_delivery=self.delivery_report)
+            if message['episode_count'] > 0:
+                self.get_episodes(message)
             self.producer.poll(0)
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())

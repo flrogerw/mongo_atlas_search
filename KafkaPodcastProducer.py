@@ -19,6 +19,7 @@ from nlp.ProcessText import ProcessText
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+KAFKA_EPISODE_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
@@ -46,6 +47,7 @@ purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
+kafka_topics = {'episodes': KAFKA_EPISODE_TOPIC, 'podcasts': KAFKA_TOPIC}
 
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
@@ -116,7 +118,7 @@ def monitor(x, stop):
 
 if __name__ == '__main__':
     try:
-        print('Kafka Podcast Processor Started')
+        print('Kafka Podcast Producer Started')
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
