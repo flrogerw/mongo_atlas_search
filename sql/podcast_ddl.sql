@@ -220,6 +220,7 @@ DROP TABLE IF EXISTS episode_quality CASCADE;
 CREATE TABLE episode_quality (
       episode_quality_id                                                        INTEGER                                     NOT NULL
     , episode_uuid                                                              UUID                                        NOT NULL        -- to OS
+    , uuid_selector                                                             INTEGER                                     NOT NULL DEFAULT 410   CHECK(index_status IN (410, 420, 430)) -- 410 -> Native, 420 -> String, 430 -> URL
     , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
