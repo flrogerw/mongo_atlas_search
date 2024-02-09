@@ -59,12 +59,12 @@ class PodcastProducer(threading.Thread):
         except Exception:
             raise
 
-    def get_episodes(self, msg):
+    def put_episodes(self, msg):
         episode_message = {
-            "rss_url": msg['rss'],
+            "rss_url": msg['rss_url'],
             "language": msg['language'],
-            "is_explicit": msg['explicit'],
-            "podcast_uuid": msg['rss'],
+            "is_explicit": msg['is_explicit'],
+            "podcast_uuid": msg['podcast_uuid'],
             "publisher": msg['publisher']}
 
         kafka_message = str(episode_message).encode()
@@ -117,8 +117,9 @@ class PodcastProducer(threading.Thread):
             self.producer.produce(topic=self.topics['podcasts'], key=str(uuid.uuid4()), value=kafka_message,
                                   on_delivery=self.delivery_report)
             if message['episode_count'] > 0:
-                self.get_episodes(message)
+                self.put_episodes(message)
             self.producer.poll(0)
+
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())
             self.logger.log_to_purgatory(message, str(err))

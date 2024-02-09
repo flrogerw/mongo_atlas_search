@@ -49,13 +49,16 @@ model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 
 def get_consumer(topic=KAFKA_TOPIC):
-    config_parser = ConfigParser()
-    config_parser.read('./config/kafka.ini')
-    config = dict(config_parser['local_consumer'])
-    config['group.id'] = 'episode_consumer'
-    kafka_consumer = Consumer(config)
-    kafka_consumer.subscribe([topic])
-    return kafka_consumer
+    try:
+        config_parser = ConfigParser()
+        config_parser.read('./config/kafka.ini')
+        config = dict(config_parser['local_consumer'])
+        config['group.id'] = 'episode_consumer'
+        kafka_consumer = Consumer(config)
+        kafka_consumer.subscribe([topic])
+        return kafka_consumer
+    except Exception:
+        raise
 
 
 def flush_queues(logger):
@@ -90,7 +93,7 @@ def monitor(id, stop):
         while True:
             time.sleep(10)
             total_completed += (quality_q.qsize() + errors_q.qsize())
-            flush_queues(db)
+            # flush_queues(db)
             if stop():
                 break
             elapsed_time = datetime.now() - start_time

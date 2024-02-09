@@ -68,11 +68,14 @@ registry_client = SchemaRegistry(
 
 
 def get_Producer():
-    config_parser = ConfigParser()
-    config_parser.read('config/kafka.ini')
-    config = dict(config_parser['local_producer'])
-    kafka_producer = Producer(config)
-    return kafka_producer
+    try:
+        config_parser = ConfigParser()
+        config_parser.read('config/kafka.ini')
+        config = dict(config_parser['local_producer'])
+        kafka_producer = Producer(config)
+        return kafka_producer
+    except Exception:
+        raise
 
 
 def flush_queues(logger):
@@ -126,7 +129,7 @@ if __name__ == '__main__':
                                 purgatory_q,
                                 errors_q,
                                 quarantine_q,
-                                KAFKA_TOPIC,
+                                kafka_topics,
                                 get_Producer(),
                                 thread_lock,
                                 text_processor)

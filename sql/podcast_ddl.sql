@@ -81,9 +81,9 @@ CREATE TABLE podcast_purgatory (
     , listen_score_global                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating global ranking
     , reason_for_failure                                                        TEXT                                        NOT NULL
     , file_name                                                                 TEXT
-    , record_hash                                                                 TEXT                                        NOT NULL           -- hash of the entire file read as a string
+    , record_hash                                                               TEXT                                        NOT NULL           -- hash of the entire file read as a string
     , title_cleaned                                                             TEXT                                           -- to OS
-    , publisher                                                                    TEXT                                           -- to OS
+    , publisher                                                                 TEXT                                           -- to OS
     , language                                                                  TEXT                                             -- to OS
     , description_cleaned                                                       TEXT
     , image_url                                                                 TEXT                                           -- to OS
@@ -145,10 +145,10 @@ CREATE TABLE podcast_quality (
     , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
     , listen_score_global                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating global ranking
-    , record_hash                                                                 TEXT                                        NOT NULL           -- hash of the entire file read as a string
+    , record_hash                                                               TEXT                                        NOT NULL           -- hash of the entire file read as a string
     , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
     , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
-    , publisher                                                                    TEXT                                                		-- to OS
+    , publisher                                                                 TEXT                                                		-- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT                                        NOT NULL
     , description_chatgpt                                                       TEXT
@@ -216,3 +216,82 @@ CREATE TABLE station_quality (
 );
 CREATE UNIQUE INDEX idx_station_quality_station_uuid       					ON station_quality    					USING btree (station_uuid);
 
+DROP TABLE IF EXISTS episode_quality CASCADE;
+CREATE TABLE episode_quality (
+      episode_quality_id                                                        INTEGER                                     NOT NULL
+    , episode_uuid                                                              UUID                                        NOT NULL        -- to OS
+    , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
+    , readability                                                               INTEGER                                     NOT NULL DEFAULT 0
+    , is_explicit                                                               BOOLEAN                                     NOT NULL
+    , index_status                                                              INTEGER                                     NOT NULL DEFAULT 310   CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
+    , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
+    , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
+    , record_hash                                                               TEXT                                        NOT NULL           -- hash of the entire file read as a string
+    , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
+    , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
+    , publisher                                                                 TEXT                                                		-- to OS
+    , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
+    , description_cleaned                                                       TEXT                                        NOT NULL
+    , description_chatgpt                                                       TEXT
+    , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
+    , vector                                                                    BYTEA                                       NOT NULL        -- to OS
+    , image_url                                                                 TEXT                                                		-- to OS
+    , duration                                                                  BIGINT
+    , file_type                                                                 VARCHAR(32)
+    , podcast_uuid                                                              UUID                                        NOT NULL
+    , episode_url                                                               TEXT
+    , publish_date                                                              BIGINT
+--    , PRIMARY KEY (active_id)
+--    , CONSTRAINT fk_episode_quality_index_status                				FOREIGN KEY (index_status)                   REFERENCES struct_type (struct_type_id)
+) PARTITION BY HASH (podcast_quality_id);
+CREATE INDEX idx_episode_quality_id                                             ON episode_quality                          USING btree (episode_quality_id);
+CREATE TABLE episode_quality_00 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 0);
+CREATE TABLE episode_quality_01 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 1);
+CREATE TABLE episode_quality_02 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 2);
+CREATE TABLE episode_quality_03 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 3);
+CREATE TABLE episode_quality_04 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 4);
+CREATE TABLE episode_quality_05 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 5);
+CREATE TABLE episode_quality_06 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 6);
+CREATE TABLE episode_quality_07 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 7);
+CREATE TABLE episode_quality_08 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 8);
+CREATE TABLE episode_quality_09 PARTITION OF episode_quality FOR VALUES WITH (MODULUS 10, REMAINDER 9);
+
+DROP TABLE IF EXISTS episode_purgatory CASCADE;
+CREATE TABLE episode_purgatory (
+      episode_purgatory_id                                                      INTEGER                                     NOT NULL
+    , episode_uuid                                                              UUID                                        NOT NULL        -- to OS
+    , date_created                                                              TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , date_modified                                                             TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , description_selected                                                      INTEGER                                     NOT NULL        -- 110=Cleaned, 120=ChatGPT
+    , readability                                                               INTEGER                                     NOT NULL DEFAULT 0
+    , is_explicit                                                               BOOLEAN                                     NOT NULL
+    , index_status                                                              INTEGER                                     NOT NULL DEFAULT 310   CHECK(index_status IN (310, 320, 330)) -- 1=AUTO 2=MANUAL 3=EXCLUDED
+    , is_deleted                                                                BOOLEAN                                     NOT NULL DEFAULT FALSE
+    , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
+    , record_hash                                                               TEXT                                        NOT NULL           -- hash of the entire file read as a string
+    , title_cleaned                                                             TEXT                                		NOT NULL        -- to OS
+    , publisher                                                                 TEXT                                                		-- to OS
+    , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
+    , description_cleaned                                                       TEXT                                        NOT NULL
+    , image_url                                                                 TEXT                                                		-- to OS
+    , duration                                                                  BIGINT
+    , file_type                                                                 VARCHAR(32)
+    , podcast_uuid                                                              UUID                                        NOT NULL
+    , episode_url                                                               TEXT
+    , publish_date                                                              BIGINT
+--    , PRIMARY KEY (active_id)
+--    , CONSTRAINT fk_episode_quality_index_status                				FOREIGN KEY (index_status)                   REFERENCES struct_type (struct_type_id)
+) PARTITION BY HASH (podcast_purgatory_id);
+CREATE INDEX idx_episode_purgatory_id                                             ON episode_purgatory                          USING btree (episode_purgatory_id);
+CREATE TABLE episode_purgatory_00 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 0);
+CREATE TABLE episode_purgatory_01 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 1);
+CREATE TABLE episode_purgatory_02 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 2);
+CREATE TABLE episode_purgatory_03 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 3);
+CREATE TABLE episode_purgatory_04 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 4);
+CREATE TABLE episode_purgatory_05 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 5);
+CREATE TABLE episode_purgatory_06 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 6);
+CREATE TABLE episode_purgatory_07 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 7);
+CREATE TABLE episode_purgatory_08 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 8);
+CREATE TABLE episode_purgatory_09 PARTITION OF episode_purgatory FOR VALUES WITH (MODULUS 10, REMAINDER 9);
