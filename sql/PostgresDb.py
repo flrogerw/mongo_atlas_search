@@ -31,17 +31,17 @@ class PostgresDb:
         except Exception:
             raise
 
-    def append_ingest_ids(self, table_name, response):
+    def append_ingest_ids(self, entity_type, table_type, response):
         try:
             ingest_ids = dict()
             argument_string = str([(d['record_hash'], d['podcast_uuid']) for d in response]).strip('[]')
             self.cursor.execute(
-                "INSERT INTO ingest (record_hash, podcast_uuid) VALUES" + argument_string + "RETURNING record_hash,ingest_id")
+                f"INSERT INTO {entity_type}_{table_type}_ingest (record_hash, podcast_uuid) VALUES {argument_string} RETURNING record_hash,{entity_type}_ingest_id")
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
-                ingest_ids[x['record_hash']] = x['ingest_id']
+                ingest_ids[x['record_hash']] = x[f"{entity_type}_ingest_id"]
             self.connection.commit()
-            id_field = '{}_id'.format(table_name)
+            id_field = f"{entity_type}_id"
             for r in response:
                 r[id_field] = ingest_ids[r['record_hash']]
             return response

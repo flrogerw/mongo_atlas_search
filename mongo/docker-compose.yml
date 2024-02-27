@@ -1,0 +1,17 @@
+services:
+  mongo:
+    image: mongodb/atlas
+    privileged: true
+    command: /bin/bash -c "atlas deployments setup --type local --port 27778 --bindIpAll --username root --password bad_password --force && tail -f /dev/null"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - mongodbdata:/data/db
+    ports:
+      - 27778:27778
+volumes:
+   mongodbdata:
+      driver: local
+      driver_opts:
+        type: 'none'
+        o: 'bind'
+        device: '/Volumes/ExternalDrive/mongo/data'

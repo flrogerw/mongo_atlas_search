@@ -3,11 +3,12 @@ import threading
 import queue
 import time
 import ast
+import uuid
 import spacy
 import traceback
 import sys
 from configparser import ConfigParser
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
 from dotenv import load_dotenv
 from thread_workers.PodcastConsumer import PodcastConsumer
 from sql.PostgresDb import PostgresDb
@@ -19,6 +20,7 @@ from sentence_transformers import SentenceTransformer
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+KAFKA_EPISODE_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
@@ -48,6 +50,17 @@ nlp.add_pipe('language_detector', last=True)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 
+def get_Producer():
+    try:
+        config_parser = ConfigParser()
+        config_parser.read('config/kafka.ini')
+        config = dict(config_parser['local_producer'])
+        kafka_producer = Producer(config)
+        return kafka_producer
+    except Exception:
+        raise
+
+
 def get_consumer(topic=KAFKA_TOPIC):
     config_parser = ConfigParser()
     config_parser.read('./config/kafka.ini')
@@ -56,6 +69,27 @@ def get_consumer(topic=KAFKA_TOPIC):
     kafka_consumer = Consumer(config)
     kafka_consumer.subscribe([topic])
     return kafka_consumer
+
+
+def put_episodes(msgs):
+    for msg in msgs:
+        if msg['episode_count'] > 0:
+            episode_message = {
+                "rss_url": msg['rss_url'],
+                "language": msg['language'],
+                "is_explicit": msg['is_explicit'],
+                "podcast_id": msg['podcast_id'],
+                "publisher": msg['publisher']}
+
+            kafka_message = str(episode_message).encode()
+            producer = get_Producer()
+            producer.produce(topic=KAFKA_EPISODE_TOPIC, key=str(uuid.uuid4()), value=kafka_message,
+                             on_delivery=delivery_report)
+
+
+def delivery_report(errmsg, msg):
+    if errmsg is not None:
+        raise KafkaException(errmsg)
 
 
 def flush_queues(logger):
@@ -68,7 +102,10 @@ def flush_queues(logger):
             errors_q.queue.clear()
 
         if quality_list:
-            quality_inserts = logger.append_ingest_ids('podcast_quality', quality_list)
+            quality_inserts = logger.append_ingest_ids('podcast', quality_list)
+            put_episodes(quality_inserts)
+            for msg in quality_inserts:
+                del msg['podcast_uuid'], msg['record_hash']
             logger.insert_many('podcast_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)

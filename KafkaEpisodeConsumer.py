@@ -71,14 +71,14 @@ def flush_queues(logger):
             errors_q.queue.clear()
 
         if quality_list:
-            quality_inserts = logger.append_ingest_ids('podcast_quality', quality_list)
+            quality_inserts = logger.append_ingest_ids('episode_quality', quality_list)
             logger.insert_many('episode_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
     except Exception as e:
         with thread_lock:
-            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
+            errors_q.put({"entity_identifier": 'EPISODE_PIPELINE_ERROR',
                           "entity_type": 555,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})

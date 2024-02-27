@@ -41,4 +41,7 @@ cd XXXXX
 git checkout origin main
 pip install -r archives/requirements.txt
 
+
+kafka-topics --bootstrap-server localhost:9092 --create --topic processor
+kafka-topics --bootstrap-server localhost:9092 --alter --topic processor --partitions 3
 ```

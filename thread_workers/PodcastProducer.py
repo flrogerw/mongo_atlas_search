@@ -25,11 +25,11 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 
 
 class PodcastProducer(threading.Thread):
-    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topics, producer, thread_lock, text_processor, *args,
+    def __init__(self, jobs_q, purgatory_q, errors_q, quarantine_q, topic, producer, thread_lock, text_processor, *args,
                  **kwargs):
         self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.jobs_q = jobs_q
-        self.topics = topics
+        self.topic = topic
         self.text_processor = text_processor
         self.producer = producer
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
@@ -59,25 +59,13 @@ class PodcastProducer(threading.Thread):
         except Exception:
             raise
 
-    def put_episodes(self, msg):
-        episode_message = {
-            "rss_url": msg['rss_url'],
-            "language": msg['language'],
-            "is_explicit": msg['is_explicit'],
-            "podcast_uuid": msg['podcast_uuid'],
-            "publisher": msg['publisher']}
-
-        kafka_message = str(episode_message).encode()
-        self.producer.produce(topic=self.topics['episodes'], key=str(uuid.uuid4()), value=kafka_message,
-                              on_delivery=self.delivery_report)
-
     def process(self, record):
         try:
             # Make sure all required elements are present
             for element in REQUIRED_ELEMENTS:
                 if element not in record:
                     raise ValidationError(f"Record is missing required element: {element}.")
-
+            record_hash = hashlib.md5(str(record).encode()).hexdigest()
             message = {"rss_url": record['rss'],
                        "language": record['language'],
                        "is_explicit": bool(record['explicit']),
@@ -91,11 +79,11 @@ class PodcastProducer(threading.Thread):
                        "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
                        if record['listen_score_global_rank'] else 0,
                        "description_selected": 110,
-                       "advanced_popularity": 1,
-                       "record_hash": hashlib.md5(str(record).encode()).hexdigest()}
+                       "record_hash": hashlib.md5(str(record).encode()).hexdigest(),
+                       "advanced_popularity": 1}
 
             # Check for Previous Instance in Redis
-            previous_podcast_uuid = self.redis_cli.get(message['record_hash'])
+            previous_podcast_uuid = self.redis_cli.get(record_hash)
             # Check for Exact Duplicates using hash of entire record string and hash of Rss URL.
             if previous_podcast_uuid == message['podcast_uuid']:
                 raise ValidationError(
@@ -106,7 +94,7 @@ class PodcastProducer(threading.Thread):
                 raise QuarantineError(previous_podcast_uuid)
             # Set entry in Redis
             else:
-                self.redis_cli.set(message['record_hash'], message['podcast_uuid'])
+                self.redis_cli.set(record_hash, message['podcast_uuid'])
 
             iso = Lang(message['language'])
             message['language'] = iso.pt1
@@ -114,10 +102,8 @@ class PodcastProducer(threading.Thread):
                 raise ValidationError(f"Language not supported: {message['language']}.")
             self.validate_minimums(message)
             kafka_message = str(message).encode()
-            self.producer.produce(topic=self.topics['podcasts'], key=str(uuid.uuid4()), value=kafka_message,
+            self.producer.produce(topic=self.topic, key=str(uuid.uuid4()), value=kafka_message,
                                   on_delivery=self.delivery_report)
-            if message['episode_count'] > 0:
-                self.put_episodes(message)
             self.producer.poll(0)
 
         except InvalidLanguageValue as err:

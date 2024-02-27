@@ -1,5 +1,4 @@
 import os
-import uuid
 import queue
 import time
 import traceback
@@ -19,7 +18,6 @@ from nlp.ProcessText import ProcessText
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
-KAFKA_EPISODE_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
 KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
 KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
@@ -47,7 +45,6 @@ purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
-kafka_topics = {'episodes': KAFKA_EPISODE_TOPIC, 'podcasts': KAFKA_TOPIC}
 
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
@@ -88,7 +85,8 @@ def flush_queues(logger):
             purgatory_q.queue.clear()
 
         if purgatory_list:
-            purgatory_inserts = logger.append_ingest_ids('podcast_purgatory', purgatory_list)
+            purgatory_inserts = logger.append_ingest_ids('podcast', 'purgatory', purgatory_list)
+            for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash'] # Thank Ray for this cluster
             logger.insert_many('podcast_purgatory', purgatory_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
@@ -129,7 +127,7 @@ if __name__ == '__main__':
                                 purgatory_q,
                                 errors_q,
                                 quarantine_q,
-                                kafka_topics,
+                                KAFKA_TOPIC,
                                 get_Producer(),
                                 thread_lock,
                                 text_processor)

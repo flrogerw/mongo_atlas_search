@@ -72,15 +72,15 @@ class EpisodeConsumer(threading.Thread):
             rss = self.get_from_web(kafka_message['rss_url'])
             root = etree.fromstring(rss)
             for item in root.iter("item"):
+                record_hash = hashlib.md5(str(rss).encode()).hexdigest()
                 episode_message = {
-                    "episode-uuid": "XXXXXX",
+                    "episode_uuid": "XXXXXX",
                     "episode_url": item.find("enclosure").attrib['url'],
                     "duration": item.find("enclosure").attrib['length'],
                     "file_type": item.find("enclosure").attrib['type'],
                     "language": kafka_message['language'],
                     "is_explicit": item.find("explicit").text
                     if hasattr(item.find("explicit"), 'text') else kafka_message['is_explicit'],
-                    "podcast_uuid": kafka_message['podcast_uuid'],
                     "publisher": item.find("author").text
                     if hasattr(item.find("author"), 'text') else kafka_message['publisher'],
                     # "image_url": record['artwork_thumbnail'],
@@ -90,11 +90,10 @@ class EpisodeConsumer(threading.Thread):
                     "description_selected": 110,
                     "advanced_popularity": 1,
                     "publish_date": int(parser.parse(item.find("pubDate").text).timestamp())
-                    if hasattr(item.find("pubDate"), 'text') else None,
-                    "record_hash": hashlib.md5(str(rss).encode()).hexdigest()}
+                    if hasattr(item.find("pubDate"), 'text') else None}
 
                 # Check for Previous Instance in Redis
-                previous_podcast_uuid = self.redis_cli.get(episode_message['record_hash'])
+                previous_podcast_uuid = self.redis_cli.get(record_hash)
                 # Check for Exact Duplicates using hash of entire record string and podcast_uuid.
                 if previous_podcast_uuid == episode_message['podcast_uuid']:
                     continue
@@ -103,7 +102,7 @@ class EpisodeConsumer(threading.Thread):
                     raise QuarantineError(previous_podcast_uuid)
                 # Set entry in Redis
                 else:
-                    self.redis_cli.set(episode_message['record_hash'], episode_message['podcast_uuid'])
+                    self.redis_cli.set(record_hash, kafka_message['podcast_id'])
 
                 self.get_search_fields(episode_message)
 
