@@ -104,8 +104,7 @@ def flush_queues(logger):
         if quality_list:
             quality_inserts = logger.append_ingest_ids('podcast', quality_list)
             put_episodes(quality_inserts)
-            for msg in quality_inserts:
-                del msg['podcast_uuid'], msg['record_hash']
+            for pi in quality_inserts: del pi['podcast_uuid'], pi['record_hash']  # Thank Ray for this cluster
             logger.insert_many('podcast_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
