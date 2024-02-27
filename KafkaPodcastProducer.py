@@ -85,7 +85,7 @@ def flush_queues(logger):
             purgatory_q.queue.clear()
 
         if purgatory_list:
-            purgatory_inserts = logger.append_ingest_ids('podcast', 'purgatory', purgatory_list)
+            purgatory_inserts = logger.append_ingest_ids('podcast', purgatory_list)
             for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash'] # Thank Ray for this cluster
             logger.insert_many('podcast_purgatory', purgatory_inserts)
         if errors_list:
