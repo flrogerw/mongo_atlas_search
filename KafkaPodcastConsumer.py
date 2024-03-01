@@ -55,9 +55,12 @@ def get_Producer():
         config_parser = ConfigParser()
         config_parser.read('config/kafka.ini')
         config = dict(config_parser['local_producer'])
+        config['transactional.id'] = 'poc-transactions'
         kafka_producer = Producer(config)
+        kafka_producer.init_transactions()
         return kafka_producer
-    except Exception:
+    except Exception as e:
+        print(e)
         raise
 
 
@@ -72,19 +75,29 @@ def get_consumer(topic=KAFKA_TOPIC):
 
 
 def put_episodes(msgs):
-    for msg in msgs:
-        if msg['episode_count'] > 0:
-            episode_message = {
-                "rss_url": msg['rss_url'],
-                "language": msg['language'],
-                "is_explicit": msg['is_explicit'],
-                "podcast_id": msg['podcast_id'],
-                "publisher": msg['publisher']}
+    try:
+        producer = get_Producer()
+        producer.begin_transaction()
+        #producer.poll(0)
+        for msg in msgs:
+            if msg['episode_count'] > 0:
+                episode_message = {
+                    "rss_url": msg['rss_url'],
+                    "language": msg['language'],
+                    "is_explicit": msg['is_explicit'],
+                    "podcast_id": msg['podcast_quality_id'],
+                    "publisher": msg['publisher']
+                     }
+                kafka_message = str(episode_message).encode()
+                producer.produce(topic=KAFKA_EPISODE_TOPIC, key=str(uuid.uuid4()), value=kafka_message,
+                                 on_delivery=delivery_report)
 
-            kafka_message = str(episode_message).encode()
-            producer = get_Producer()
-            producer.produce(topic=KAFKA_EPISODE_TOPIC, key=str(uuid.uuid4()), value=kafka_message,
-                             on_delivery=delivery_report)
+    except KafkaError:
+        raise
+    except Exception:
+        raise
+    finally:
+        producer.commit_transaction()
 
 
 def delivery_report(errmsg, msg):
@@ -102,20 +115,21 @@ def flush_queues(logger):
             errors_q.queue.clear()
 
         if quality_list:
-            quality_inserts = logger.append_ingest_ids('podcast', quality_list)
+            quality_inserts = logger.append_ingest_ids('podcast', 'quality', quality_list)
             put_episodes(quality_inserts)
-            for pi in quality_inserts: del pi['podcast_uuid'], pi['record_hash']  # Thank Ray for this cluster
+            for qi in quality_inserts: del qi['podcast_uuid'], qi['record_hash']  # Thank Ray for this cluster
             logger.insert_many('podcast_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
-        logger.close_connection()
     except Exception as e:
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 2,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
+    finally:
+        logger.close_connection()
 
 
 def monitor(id, stop):
@@ -132,10 +146,10 @@ def monitor(id, stop):
             elapsed_time = datetime.now() - start_time
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
     except Exception as e:
-        print(print(traceback.format_exc()))
+        print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 2,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
@@ -188,10 +202,10 @@ if __name__ == '__main__':
         stop_monitor = True
 
     except Exception as err:
-        print(traceback.format_exc())
+        #print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 2,
                           "error": err,
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

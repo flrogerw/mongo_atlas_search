@@ -78,7 +78,7 @@ class PodcastProducer(threading.Thread):
                        "readability": 0,
                        "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
                        if record['listen_score_global_rank'] else 0,
-                       "description_selected": 110,
+                       "description_selected": 410,
                        "record_hash": hashlib.md5(str(record).encode()).hexdigest(),
                        "advanced_popularity": 1}
 
@@ -91,20 +91,20 @@ class PodcastProducer(threading.Thread):
 
             # Same Body Different URL. title says "DELETED"??
             elif previous_podcast_uuid:
-                raise QuarantineError(previous_podcast_uuid)
+                raise QuarantineError({"podcast_uuid": message['podcast_uuid'], "duplicate_file_name": record['rss'],
+                                       "original_podcast_uuid": previous_podcast_uuid})
             # Set entry in Redis
             else:
                 self.redis_cli.set(record_hash, message['podcast_uuid'])
-
-            iso = Lang(message['language'])
-            message['language'] = iso.pt1
-            if message['language'] not in LANGUAGES:
-                raise ValidationError(f"Language not supported: {message['language']}.")
-            self.validate_minimums(message)
-            kafka_message = str(message).encode()
-            self.producer.produce(topic=self.topic, key=str(uuid.uuid4()), value=kafka_message,
-                                  on_delivery=self.delivery_report)
-            self.producer.poll(0)
+                iso = Lang(message['language'])
+                message['language'] = iso.pt1
+                if message['language'] not in LANGUAGES:
+                    raise ValidationError(f"Language not supported: {message['language']}.")
+                self.validate_minimums(message)
+                kafka_message = str(message).encode()
+                self.producer.produce(topic=self.topic, key=str(uuid.uuid4()), value=kafka_message,
+                                      on_delivery=self.delivery_report)
+                # self.producer.flush()
 
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())
@@ -112,13 +112,13 @@ class PodcastProducer(threading.Thread):
         except ValidationError as err:
             # print(traceback.format_exc())
             self.logger.log_to_purgatory(message, str(err))
-        except QuarantineError as previous_podcast_uuid:
-            self.logger.log_to_quarantine(message, str(previous_podcast_uuid))
+        except QuarantineError as quarantine_obj:
+            self.logger.log_to_quarantine(quarantine_obj)
         except KafkaException as err:
             # print(traceback.format_exc())
-            self.logger.log_to_errors(message['podcast_uuid'], err, traceback.format_exc(), 555)
+            self.logger.log_to_errors(message['podcast_uuid'], str(err), traceback.format_exc(), 2)
         except Exception as err:
-            print(traceback.format_exc())
-            self.logger.log_to_errors(message['podcast_uuid'], err, traceback.format_exc(), 555)
-        finally:
-            pass
+            # print(traceback.format_exc())
+            self.logger.log_to_errors(message['podcast_uuid'], str(err), traceback.format_exc(), 2)
+        # finally:
+            # pass

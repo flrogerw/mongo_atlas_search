@@ -14,7 +14,6 @@ class ErrorLogger:
             raise
 
     def log_to_errors(self, entity_identifier, error_str, stack_trace, entity_type):
-        print(stack_trace)
         try:
             with self.thread_lock:
                 # print(error_str, stack_trace)
@@ -25,9 +24,6 @@ class ErrorLogger:
         except Exception:
             raise
 
-    def log_to_quarantine(self, msg, matching_uuid):
-        # print(podcast_uuid, matching_uuid, file_name)
+    def log_to_quarantine(self, quarantine_obj):
         with self.thread_lock:
-            self.quarantine_q.put({"podcast_uuid": msg['podcast_uuid'],
-                                   "original_podcast_uuid": matching_uuid,
-                                   "duplicate_file_name": msg['file_name']})
+            self.quarantine_q.put(quarantine_obj)

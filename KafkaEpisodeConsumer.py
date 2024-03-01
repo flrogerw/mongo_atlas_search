@@ -16,6 +16,7 @@ from spacy_langdetect import LanguageDetector
 from spacy.language import Language
 from sentence_transformers import SentenceTransformer
 
+
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
@@ -33,6 +34,8 @@ jobs_q = queue.Queue(JOB_QUEUE_SIZE)
 quality_q = queue.Queue()
 errors_q = queue.Queue()
 episodes_q = queue.Queue()
+purgatory_q = queue.Queue()
+quarantine_q = queue.Queue()
 
 thread_lock = threading.Lock()
 
@@ -67,19 +70,30 @@ def flush_queues(logger):
         with thread_lock:
             quality_list = list(quality_q.queue)
             quality_q.queue.clear()
+            quarantine_list = list(quarantine_q.queue)
+            quarantine_q.queue.clear()
+            purgatory_list = list(purgatory_q.queue)
+            purgatory_q.queue.clear()
             errors_list = list(errors_q.queue)
             errors_q.queue.clear()
 
         if quality_list:
-            quality_inserts = logger.append_ingest_ids('episode_quality', quality_list)
+            quality_inserts = logger.append_ingest_ids('episode', 'quality', quality_list)
+            for pi in quality_inserts: del pi['episode_uuid'], pi['record_hash']  # Thank Ray for this cluster
             logger.insert_many('episode_quality', quality_inserts)
+        if purgatory_list:
+            purgatory_inserts = logger.append_ingest_ids('episode', 'purgatory', purgatory_list)
+            for pi in purgatory_inserts: del pi['episode_uuid'], pi['record_hash']  # Thank Ray for this cluster
+            logger.insert_many('episode_purgatory', purgatory_inserts)
+        if quarantine_list:
+            logger.insert_many('episode_quarantine', quarantine_list)
         if errors_list:
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
     except Exception as e:
         with thread_lock:
             errors_q.put({"entity_identifier": 'EPISODE_PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 1,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
@@ -93,16 +107,16 @@ def monitor(id, stop):
         while True:
             time.sleep(10)
             total_completed += (quality_q.qsize() + errors_q.qsize())
-            # flush_queues(db)
+            flush_queues(db)
             if stop():
                 break
             elapsed_time = datetime.now() - start_time
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
     except Exception as e:
-        print(print(traceback.format_exc()))
+        print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 1,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
@@ -117,6 +131,8 @@ if __name__ == '__main__':
             w = EpisodeConsumer(jobs_q,
                                 quality_q,
                                 errors_q,
+                                purgatory_q,
+                                quarantine_q,
                                 thread_lock,
                                 nlp,
                                 model)
@@ -155,10 +171,10 @@ if __name__ == '__main__':
         stop_monitor = True
 
     except Exception as err:
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 1,
                           "error": err,
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

@@ -34,10 +34,13 @@ class PodcastConsumer(threading.Thread):
                 return
 
     def get_search_fields(self, kafka_message):
-        for key in GET_TOKENS:
-            lemma_key = f"{key.split('_')[0]}_lemma"
-            kafka_message[lemma_key] = ProcessText.return_lemma(kafka_message[key], kafka_message['language'])
-        kafka_message['vector'] = pickle.dumps(ProcessText.get_vector(kafka_message[FIELD_TO_VECTOR], self.model))
+        try:
+            for key in GET_TOKENS:
+                lemma_key = f"{key.split('_')[0]}_lemma"
+                kafka_message[lemma_key] = ProcessText.return_lemma(kafka_message[key], kafka_message['language'])
+            kafka_message['vector'] = pickle.dumps(ProcessText.get_vector(kafka_message[FIELD_TO_VECTOR], self.model))
+        except Exception:
+            raise
 
     def process(self, kafka_message):
         try:

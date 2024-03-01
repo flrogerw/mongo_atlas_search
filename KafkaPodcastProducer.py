@@ -80,21 +80,25 @@ def flush_queues(logger):
         logger.connect()
         with thread_lock:
             purgatory_list = list(purgatory_q.queue)
+            quarantine_list = list(quarantine_q.queue)
             errors_list = list(errors_q.queue)
-            errors_q.queue.clear()
             purgatory_q.queue.clear()
+            errors_q.queue.clear()
+            quarantine_q.queue.clear()
 
         if purgatory_list:
-            purgatory_inserts = logger.append_ingest_ids('podcast', purgatory_list)
+            purgatory_inserts = logger.append_ingest_ids('podcast', 'purgatory', purgatory_list)
             for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash'] # Thank Ray for this cluster
             logger.insert_many('podcast_purgatory', purgatory_inserts)
+        if quarantine_list:
+            logger.insert_many('podcast_quarantine', quarantine_list)
         if errors_list:
             logger.insert_many('error_log', errors_list)
     except Exception:
         raise
         pass
-
-    logger.close_connection()
+    finally:
+        logger.close_connection()
 
 
 def monitor(x, stop):
@@ -108,10 +112,10 @@ def monitor(x, stop):
             elapsed_time = datetime.now() - start
             print(f'Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
     except Exception as e:
-        print(print(traceback.format_exc()))
+        print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 555,
+                          "entity_type": 2,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
