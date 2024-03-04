@@ -26,11 +26,13 @@ DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
+DB_SCHEMA = os.getenv('DB_SCHEMA')
 STATIONS_CSV_FILE = os.getenv('STATIONS_CSV_FILE')
+REDIS_HOST = os.getenv('REDIS_HOST')
 
 threadLock = threading.Lock()
 record_count = 0
-db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST)
+db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
 """ Required to load properly below """
 
 
@@ -47,7 +49,7 @@ nlp.add_pipe('language_detector', last=True)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 # Setup Redis
-redisCli = redis.Redis(host='localhost', port=6379, charset="utf-8", decode_responses=True)
+redisCli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
 if FLUSH_REDIS_ON_START == 'True':
     redisCli.select(3)
     redisCli.flushdb()  # Clear hash cache
@@ -96,13 +98,12 @@ def monitor(id, stop):
         while True:
             time.sleep(10)
             flush_start_time = datetime.now()
-            #flush_queues(db)
+            flush_queues(db)
             if stop():
                 break
             print('Completed: {} records, Remaining: {} Total Elapsed Time: {} Queue Write: {}'.format(
                 record_count - jobs.qsize(), record_count - (record_count - jobs.qsize()),
                 datetime.now() - start_time, datetime.now() - flush_start_time), flush=True)
-        #flush_queues(db)
     except Exception as e:
         print(e)
         with threadLock:

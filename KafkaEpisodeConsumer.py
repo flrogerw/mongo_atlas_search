@@ -6,6 +6,7 @@ import ast
 import spacy
 import traceback
 import sys
+import redis
 from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaException, KafkaError
 from dotenv import load_dotenv
@@ -28,6 +29,8 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
+FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
+REDIS_HOST = os.getenv('REDIS_HOST')
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
@@ -39,6 +42,13 @@ quarantine_q = queue.Queue()
 
 thread_lock = threading.Lock()
 
+
+if FLUSH_REDIS_ON_START:
+    redis_cli = redis.Redis(host=REDIS_HOST,
+                            port=6379,
+                            charset="utf-8",
+                            decode_responses=True)
+    redis_cli.flushdb()  # Clear hash cache
 
 def get_lang_detector(nlp, name):
     return LanguageDetector()
@@ -79,7 +89,7 @@ def flush_queues(logger):
 
         if quality_list:
             quality_inserts = logger.append_ingest_ids('episode', 'quality', quality_list)
-            for pi in quality_inserts: del pi['episode_uuid'], pi['record_hash']  # Thank Ray for this cluster
+            for qi in quality_inserts: del qi['episode_uuid'], qi['record_hash']  # Thank Ray for this cluster
             logger.insert_many('episode_quality', quality_inserts)
         if purgatory_list:
             purgatory_inserts = logger.append_ingest_ids('episode', 'purgatory', purgatory_list)

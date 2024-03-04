@@ -1,6 +1,6 @@
 import psycopg2
 import psycopg2.extras
-from psycopg2.extensions import AsIs
+from psycopg2.errors import UniqueViolation
 import traceback
 
 
@@ -34,6 +34,19 @@ class PostgresDb:
             print(traceback.format_exc())
             pass
 
+    def error_retry(self, entity_type, table_type, response):
+        try:
+            return_list = []
+            for entry in response:
+                query = f"INSERT INTO {entity_type}_ingest (record_hash, {entity_type}_uuid) VALUES ('{entry['record_hash']}','{entry[entity_type + '_uuid']}') RETURNING {entity_type}_ingest_id as {entity_type}_{table_type}_id"
+                self.cursor.execute(query)
+                result = self.cursor.fetch()
+                entry[f"{entity_type}_{table_type}_id"] = result
+                return_list.append(entry)
+            return response
+        except Exception as err:
+            print(err)
+
     def append_ingest_ids(self, entity_type, table_type, response):
         try:
             ingest_ids = dict()
@@ -43,24 +56,27 @@ class PostgresDb:
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
                 ingest_ids[x['record_hash']] = x[f"{entity_type}_{table_type}_id"]
-            self.connection.commit()
             id_field = f"{entity_type}_{table_type}_id"
             for r in response:
                 r[id_field] = ingest_ids[r['record_hash']]
             return response
+
+        except UniqueViolation:
+            return self.error_retry(entity_type, table_type, response)
+            pass
         except Exception:
             print(traceback.format_exc())
-            self.connection.commit()
             pass
+        finally:
+            self.connection.commit()
 
     def insert_many(self, table_name, list_of_dicts):
         try:
             columns = ', '.join(list_of_dicts[0].keys())
-            print(columns)
             place_holders = ','.join(['%s'] * len(list_of_dicts[0].keys()))
             insert_tuples = (tuple(d.values()) for d in list_of_dicts)
             query = f"INSERT INTO {table_name} ({columns}) VALUES ({place_holders})"
-            print(psycopg2.extras.execute_batch(self.cursor, query, insert_tuples))
+            psycopg2.extras.execute_batch(self.cursor, query, insert_tuples)
         except Exception:
             print(traceback.format_exc())
             pass

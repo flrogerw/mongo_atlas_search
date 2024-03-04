@@ -5,3 +5,5 @@ config/kafka-client.ini
 /venv/
 /client/frontend/node_modules/
 .vercel
+/archives/*.tsv
+/archives/*.db
