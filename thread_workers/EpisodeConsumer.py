@@ -133,7 +133,7 @@ class EpisodeConsumer(threading.Thread):
                 "episode_uuid": episode_uuid,
                 "episode_url": item.enclosure.get('url'),
                 "podcast_id": kafka_message['podcast_id'],
-                "duration": int(item.enclosure.get('length')) if item.enclosure else 0,
+                "duration": int(item.enclosure.get('length')) if item.enclosure.get('length') else 0,
                 "file_type": item.enclosure.get('type'),
                 "language": kafka_message['language'],
                 "is_explicit": self.to_bool(item.explicit.get_text(),
