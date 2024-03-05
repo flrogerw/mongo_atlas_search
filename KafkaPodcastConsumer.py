@@ -121,13 +121,16 @@ def flush_queues(logger):
             logger.insert_many('podcast_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
-    except Exception as e:
-        with thread_lock:
-            errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 2,
-                          "error": str(e),
-                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
-            pass
+
+    except ValueError as res:
+        response, entity_type, table_type = res.args
+        inserts = logger.error_retry(entity_type, table_type, response)
+        if len(inserts) > 0:
+            for ins in inserts: del ins['podcast_uuid'], ins['record_hash']  # Thank Ray for this cluster
+            logger.insert_many(f"{entity_type}_{table_type}", inserts)
+        pass
+    except Exception:
+        raise
     finally:
         logger.close_connection()
 

@@ -45,10 +45,16 @@ class PostgresDb:
                 entries_to_return.append(entry)
                 self.connection.commit()
             except UniqueViolation:
-                print('UniqueViolation', entry['podcast_uuid'])
-
-                #self.insert_many(f"{entity_type}_quarantine", [entry])
+                print('UniqueViolation')
                 self.connection.commit()
+                columns = f"{entity_type}_uuid,original_{entity_type}_uuid,duplicate_file_name"
+                values = (entry[f"{entity_type}_uuid"],entry[f"{entity_type}_uuid"], 'DB INSERT DUPLICATE')
+                try:
+                    query = f"INSERT INTO {entity_type}_quarantine ({columns}) VALUES {values}"
+                    self.cursor.execute(query)
+                    self.connection.commit()
+                except Exception:
+                    raise
                 continue
         return entries_to_return
 

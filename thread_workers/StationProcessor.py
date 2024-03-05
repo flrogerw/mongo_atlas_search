@@ -36,8 +36,7 @@ class StationProcessor(threading.Thread):
         self.complete_queue = good_queue
         self.job_queue = job_queue
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
-        self.redis.select(3)  # Station Cache
-
+        self.entity_type = 'station'
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -62,8 +61,7 @@ class StationProcessor(threading.Thread):
             title_len = len(msg['title_cleaned'].split(' '))
             if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
                 raise TypeError(
-                    f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.",
-                    msg)
+                    f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.")
         except Exception:
             raise
 
@@ -96,13 +94,14 @@ class StationProcessor(threading.Thread):
 
         try:
             job_hash = hashlib.md5(str(job).encode()).hexdigest()
-            previous_station_uuid = self.redis.get(job_hash)
+            previous_station_uuid = self.redis.get(f"{self.entity_type}_{job_hash}")
 
             if previous_station_uuid == station['station_uuid']:
-                raise QuarantineError(previous_station_uuid)
+                raise QuarantineError({"station_uuid": station['station_uuid'],
+                                       "original_station_uuid": previous_station_uuid})
             # Set entry in Redis
             else:
-                self.redis.set(job_hash, station['station_uuid'])
+                self.redis.set(f"{self.entity_type}_{job_hash}", station['station_uuid'])
 
             # First Pass at Filtering Garbage
             self.validate_text_length(station)
@@ -124,8 +123,7 @@ class StationProcessor(threading.Thread):
 
         except TypeError as err:
             # print(traceback.format_exc())
-            error, message = err.args
-            self.logger.log_to_purgatory(message, str(error))
+            self.logger.log_to_purgatory(station, str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj)
         except ValidationError as err:

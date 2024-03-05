@@ -238,6 +238,7 @@ CREATE TABLE episode_quarantine (
     , date_processed                                                            TIMESTAMPTZ                                 NOT NULL DEFAULT CURRENT_TIMESTAMP
     , episode_uuid                                                              UUID                                        NOT NULL
     , original_episode_uuid                                                     UUID                                        NOT NULL
+    , duplicate_file_name                                                       TEXT                                		NOT NULL
     , PRIMARY KEY (episode_quarantine_id)
 );
 CREATE UNIQUE INDEX idx_episode_quarantine_episode_uuid       					ON episode_quarantine    					USING btree (episode_uuid);

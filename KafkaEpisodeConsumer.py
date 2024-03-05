@@ -103,9 +103,9 @@ def flush_queues(logger):
         logger.close_connection()
     except ValueError as res:
         response, entity_type, table_type = res.args
-        inserts = logger.error_retry(entity_type, table_type, response, entity_struct_id)
+        inserts = logger.error_retry(entity_type, table_type, response)
         if len(inserts) > 0:
-            for ins in inserts: del ins['podcast_uuid'], ins['record_hash']  # Thank Ray for this cluster
+            for ins in inserts: del ins['episode_uuid'], ins['record_hash']  # Thank Ray for this cluster
             logger.insert_many(f"{entity_type}_{table_type}", inserts)
         pass
     except Exception:
