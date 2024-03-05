@@ -4,21 +4,20 @@ import uuid
 import threading
 import queue
 import traceback
+import requests
+import hashlib
+import redis
 from typing import Optional
-
 from nlp.ProcessText import ProcessText
 from dotenv import load_dotenv
 from logger.Logger import ErrorLogger
 from Errors import ValidationError, QuarantineError
-import requests
-import hashlib
-import redis
 from dateutil import parser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, ValidationError, UUID5, StrictBool, PastDatetime, PositiveInt, PositiveFloat, Field
+from pydantic import BaseModel, ValidationError, UUID5, StrictBool, PastDatetime, PositiveInt, PositiveFloat
 
-load_dotenv()
 # Load System ENV VARS
+load_dotenv()
 READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
 GET_TOKENS = os.getenv('GET_TOKENS').split(",")
 FIELD_TO_VECTOR = os.getenv('PODCAST_VECTOR')
@@ -51,7 +50,16 @@ class Episode(BaseModel):
 
 
 class EpisodeConsumer(threading.Thread):
-    def __init__(self, jobs_q, quality_q, errors_q, purgatory_q, quarantine_q, thread_lock, nlp, model, *args,
+    def __init__(self,
+                 jobs_q,
+                 quality_q,
+                 errors_q,
+                 purgatory_q,
+                 quarantine_q,
+                 thread_lock,
+                 nlp,
+                 model,
+                 *args,
                  **kwargs):
         self.nlp = nlp
         self.thread_lock = thread_lock
@@ -62,6 +70,7 @@ class EpisodeConsumer(threading.Thread):
         self.thread_lock = thread_lock
         self.redis_cli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
+        self.entity_type = 'episode'
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -87,8 +96,7 @@ class EpisodeConsumer(threading.Thread):
             title_len = len(msg['title_cleaned'].split(' '))
             if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
                 raise TypeError(
-                    f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.",
-                    msg)
+                    f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.")
         except Exception:
             raise
 
@@ -107,13 +115,25 @@ class EpisodeConsumer(threading.Thread):
             return string_bool
             # return default
 
+    def get_guid(self, guid_str):
+        try:
+            uuid.UUID(str(guid_str))
+            return guid_str
+        except ValueError:
+            return str(uuid.uuid5(self.namespace, guid_str))
+
     def get_message(self, item, kafka_message):
         try:
+            if hasattr(item.guid, 'get_text'):
+                episode_uuid = self.get_guid(str(item.guid.get_text()))
+            else:
+                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('url')))
+
             return {
-                "episode_uuid": str(uuid.uuid5(self.namespace, item.enclosure.get('url'))),
+                "episode_uuid": episode_uuid,
                 "episode_url": item.enclosure.get('url'),
                 "podcast_id": kafka_message['podcast_id'],
-                "duration": int(item.enclosure.get('length')),
+                "duration": int(item.enclosure.get('length')) if item.enclosure else 0,
                 "file_type": item.enclosure.get('type'),
                 "language": kafka_message['language'],
                 "is_explicit": self.to_bool(item.explicit.get_text(),
@@ -131,7 +151,7 @@ class EpisodeConsumer(threading.Thread):
                 "index_status": 310,
                 'record_hash': hashlib.md5(str(item).encode()).hexdigest(),
                 "publish_date": int(
-                    parser.parse(item.pubDate.get_text()).timestamp()) if item.pubDate else None
+                    parser.parse(item.pubDate.get_text().lower()).timestamp()) if item.pubDate else None
             }
         except Exception:
             raise
@@ -146,19 +166,19 @@ class EpisodeConsumer(threading.Thread):
                 self.validate_minimums(episode_message)
 
                 # Check for Previous Instance in Redis
-                previous_episode_uuid = self.redis_cli.get(episode_message['record_hash'])
+                previous_episode_uuid = self.redis_cli.get(f"{self.entity_type}_{episode_message['record_hash']}")
                 # Check for Exact Duplicates using hash of entire record string and podcast_uuid.
                 if previous_episode_uuid == episode_message['episode_uuid']:
                     raise TypeError(
-                        f"File {episode_message['episode_url']} is a duplicate to: {previous_episode_uuid}.",
-                        episode_message)
+                        f"File {episode_message['episode_url']} is a duplicate to: {previous_episode_uuid}.")
                 # Same Body Different podcast_uuid. title says "DELETED"??
                 elif previous_episode_uuid:
                     raise QuarantineError({"episode_uuid": episode_message['episode_uuid'],
                                            "original_episode_uuid": previous_episode_uuid})
                 # Set entry in Redis
                 else:
-                    self.redis_cli.set(episode_message['record_hash'], episode_message['episode_uuid'])
+                    self.redis_cli.set(f"{self.entity_type}_{episode_message['record_hash']}",
+                                       episode_message['episode_uuid'])
                     self.get_search_fields(episode_message)
                     if episode_message['language'] == 'en':
                         episode_message['readability'] = ProcessText.get_readability(episode_message[READABILITY_FIELD],
@@ -168,8 +188,7 @@ class EpisodeConsumer(threading.Thread):
 
         except TypeError as err:
             # print(traceback.format_exc())
-            error, message = err.args
-            self.logger.log_to_purgatory(message, str(error))
+            self.logger.log_to_purgatory(episode_message, str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj)
         except ValidationError as err:
