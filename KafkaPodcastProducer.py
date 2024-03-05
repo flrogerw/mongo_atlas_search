@@ -37,6 +37,7 @@ thread_lock = threading.Lock()
 text_processor = ProcessText
 good_record_count = 0
 total_record_count = 0
+entity_struct_id = 2
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
@@ -94,11 +95,16 @@ def flush_queues(logger):
             logger.insert_many('podcast_quarantine', quarantine_list)
         if errors_list:
             logger.insert_many('error_log', errors_list)
+        logger.close_connection()
+    except ValueError as res:
+        response, entity_type, table_type = res.args
+        inserts = db.error_retry(entity_type, table_type, response)
+        if len(inserts) > 0:
+            for ins in inserts: del ins['podcast_uuid'], ins['record_hash']  # Thank Ray for this cluster
+            logger.insert_many(f"{entity_type}_{table_type}", inserts)
+        pass
     except Exception:
         raise
-        pass
-    finally:
-        logger.close_connection()
 
 
 def monitor(x, stop):
@@ -115,7 +121,7 @@ def monitor(x, stop):
         print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 2,
+                          "entity_type": entity_struct_id,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

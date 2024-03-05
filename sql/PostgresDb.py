@@ -35,17 +35,22 @@ class PostgresDb:
             pass
 
     def error_retry(self, entity_type, table_type, response):
-        try:
-            return_list = []
-            for entry in response:
+        entries_to_return = []
+        for entry in response:
+            try:
                 query = f"INSERT INTO {entity_type}_ingest (record_hash, {entity_type}_uuid) VALUES ('{entry['record_hash']}','{entry[entity_type + '_uuid']}') RETURNING {entity_type}_ingest_id as {entity_type}_{table_type}_id"
                 self.cursor.execute(query)
-                result = self.cursor.fetch()
-                entry[f"{entity_type}_{table_type}_id"] = result
-                return_list.append(entry)
-            return response
-        except Exception as err:
-            print(err)
+                result = self.cursor.fetchone()
+                entry[f"{entity_type}_{table_type}_id"] = result[f"{entity_type}_{table_type}_id"]
+                entries_to_return.append(entry)
+                self.connection.commit()
+            except UniqueViolation:
+                print('UniqueViolation', entry['podcast_uuid'])
+
+                #self.insert_many(f"{entity_type}_quarantine", [entry])
+                self.connection.commit()
+                continue
+        return entries_to_return
 
     def append_ingest_ids(self, entity_type, table_type, response):
         try:
@@ -56,17 +61,13 @@ class PostgresDb:
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
                 ingest_ids[x['record_hash']] = x[f"{entity_type}_{table_type}_id"]
-            id_field = f"{entity_type}_{table_type}_id"
             for r in response:
-                r[id_field] = ingest_ids[r['record_hash']]
+                r[f"{entity_type}_{table_type}_id"] = ingest_ids[r['record_hash']]
             return response
-
         except UniqueViolation:
-            return self.error_retry(entity_type, table_type, response)
-            pass
+            raise ValueError(response, entity_type, table_type)
         except Exception:
             print(traceback.format_exc())
-            pass
         finally:
             self.connection.commit()
 

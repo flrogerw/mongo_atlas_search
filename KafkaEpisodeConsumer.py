@@ -41,6 +41,7 @@ purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
 thread_lock = threading.Lock()
+entity_struct_id = 1
 
 
 if FLUSH_REDIS_ON_START:
@@ -100,13 +101,15 @@ def flush_queues(logger):
         if errors_list:
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
-    except Exception as e:
-        with thread_lock:
-            errors_q.put({"entity_identifier": 'EPISODE_PIPELINE_ERROR',
-                          "entity_type": 1,
-                          "error": str(e),
-                          "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
-            pass
+    except ValueError as res:
+        response, entity_type, table_type = res.args
+        inserts = logger.error_retry(entity_type, table_type, response, entity_struct_id)
+        if len(inserts) > 0:
+            for ins in inserts: del ins['podcast_uuid'], ins['record_hash']  # Thank Ray for this cluster
+            logger.insert_many(f"{entity_type}_{table_type}", inserts)
+        pass
+    except Exception:
+        raise
 
 
 def monitor(id, stop):
