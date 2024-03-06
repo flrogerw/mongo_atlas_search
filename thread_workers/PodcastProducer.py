@@ -13,8 +13,7 @@ from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from Errors import ValidationError, QuarantineError
 from logger.Logger import ErrorLogger
-from pydantic import BaseModel, ValidationError, UUID5, StrictBool, PositiveInt, PositiveFloat
-from typing import Union, ClassVar
+from schemas.validation import Podcast
 
 load_dotenv()
 
@@ -24,23 +23,6 @@ UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
 MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
 MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 REDIS_HOST = os.getenv('REDIS_HOST')
-
-
-class Podcast(BaseModel):
-    podcast_uuid: UUID5
-    rss_url: str
-    language: ClassVar[list[str]] = LANGUAGES
-    is_explicit: StrictBool
-    publisher: str
-    # "image_url": record['artwork_thumbnail'],
-    description_cleaned: str
-    title_cleaned: str
-    readability: int
-    description_selected: PositiveInt
-    advanced_popularity: PositiveFloat
-    record_hash: str
-    episode_count: int
-    listen_score_global: Union[str, float]
 
 
 class PodcastProducer(threading.Thread):

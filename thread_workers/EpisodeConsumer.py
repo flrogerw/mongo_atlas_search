@@ -7,14 +7,13 @@ import traceback
 import requests
 import hashlib
 import redis
-from typing import Optional
 from nlp.ProcessText import ProcessText
 from dotenv import load_dotenv
 from logger.Logger import ErrorLogger
+from schemas.validation import Episode
 from Errors import ValidationError, QuarantineError
 from dateutil import parser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, ValidationError, UUID5, StrictBool, PastDatetime, PositiveInt, PositiveFloat
 
 # Load System ENV VARS
 load_dotenv()
@@ -27,26 +26,6 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
 TRUE_BOOL = os.getenv('TRUE_BOOL').split(",")
 FALSE_BOOL = os.getenv('FALSE_BOOL').split(",")
-
-
-class Episode(BaseModel):
-    episode_uuid: UUID5
-    episode_url: str
-    podcast_id: PositiveInt
-    duration: PositiveInt
-    file_type: str
-    language: str
-    is_explicit: StrictBool
-    publisher: str
-    # "image_url": record['artwork_thumbnail'],
-    description_cleaned: str
-    title_cleaned: str
-    readability: int
-    description_selected: PositiveInt
-    advanced_popularity: PositiveFloat
-    index_status: PositiveInt
-    record_hash: str
-    publish_date: Optional[PastDatetime]
 
 
 class EpisodeConsumer(threading.Thread):
