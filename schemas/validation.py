@@ -10,10 +10,11 @@ LANGUAGES = os.getenv('LANGUAGES').split(",")
 class Podcast(BaseModel):
     podcast_uuid: UUID5 | UUID4
     rss_url: str
+    original_url: str
     language: ClassVar[list[str]] = LANGUAGES
     is_explicit: StrictBool
     publisher: str
-    # "image_url": record['artwork_thumbnail'],
+    image_url: str
     description_cleaned: str
     title_cleaned: str
     readability: int

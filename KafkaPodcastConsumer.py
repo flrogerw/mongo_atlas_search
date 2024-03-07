@@ -86,6 +86,7 @@ def put_episodes(msgs):
                     "language": msg['language'],
                     "is_explicit": msg['is_explicit'],
                     "podcast_id": msg['podcast_quality_id'],
+                    "image_url": msg['image_url'],
                     "publisher": msg['publisher']
                      }
                 kafka_message = str(episode_message).encode()

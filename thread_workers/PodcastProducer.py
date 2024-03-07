@@ -3,6 +3,7 @@ import uuid
 import queue
 import hashlib
 import traceback
+import requests
 import redis
 import threading
 from iso639 import Lang
@@ -23,6 +24,10 @@ UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
 MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
 MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 REDIS_HOST = os.getenv('REDIS_HOST')
+IMAGE_MIME_TYPES = os.getenv('IMAGE_MIME_TYPES').split(",")
+KAFKA_UPLOAD_TOPIC = os.getenv('KAFKA_UPLOAD_TOPIC')
+DEFAULT_IMAGE_PATH = os.getenv('DEFAULT_IMAGE_PATH')
+UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
 
 
 class PodcastProducer(threading.Thread):
@@ -47,9 +52,49 @@ class PodcastProducer(threading.Thread):
             except queue.Empty:
                 return
 
+    def drop_on_kafka(self, message, topic):
+        kafka_message = str(message).encode()
+        self.producer.produce(topic=topic, key=str(uuid.uuid4()), value=kafka_message,
+                              on_delivery=self.delivery_report)
+        self.producer.flush()
+
     def delivery_report(self, errmsg, msg):
         if errmsg is not None:
             raise KafkaException(errmsg)
+
+    def get_path(self, path_uuid):
+        return f"{path_uuid[-1:]}/{path_uuid[-2:]}/{path_uuid[-3:]}/{path_uuid[-4:]}/{path_uuid}"
+
+    def get_image_path(self, image_url, parent_uuid):
+        try:
+            image_head = requests.head(image_url, timeout=1.0)
+            if image_head.headers['Content-Type'] in IMAGE_MIME_TYPES:
+                _, extension = image_head.headers["content-type"].split("/")  # Cheesy way.  Needs better
+                image_name = hashlib.md5(str(image_url).encode()).hexdigest()
+                previous_image = self.redis_cli.get(f"image_{image_name}")
+                if previous_image is None:
+                    path = self.get_path(parent_uuid)
+                    image_path = f"{path}/{image_name}.{extension}"
+                    self.redis_cli.set(f"image_{image_name}", image_path)
+                    image_message = {
+                        'upload_bucket': UPLOAD_BUCKET,
+                        'file_path': path,
+                        'file_name': f"{image_name}.{extension}",
+                        'url': image_url,
+                        'content_type': 'image',
+                        'field': 'image_url'
+                    }
+                    self.drop_on_kafka(image_message, KAFKA_UPLOAD_TOPIC)
+                else:
+                    image_path = previous_image
+            else:
+                image_path = DEFAULT_IMAGE_PATH
+        except Exception as err:
+            # print(traceback.format_exc())
+            image_path = DEFAULT_IMAGE_PATH
+            pass
+        finally:
+            return f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{image_path}"
 
     def validate_minimums(self, msg):
         try:
@@ -67,12 +112,12 @@ class PodcastProducer(threading.Thread):
             for element in REQUIRED_ELEMENTS:
                 if element not in record:
                     raise TypeError(f"Record is missing required element: {element}.")
-            message = {"rss_url": record['rss'],
+            message = {
+                       "original_url": record['rss'],
                        "language": record['language'],
                        "is_explicit": bool(record['explicit']),
                        "podcast_uuid": str(uuid.uuid5(self.namespace, record['rss'])),
                        "publisher": self.text_processor.return_clean_text(record['publisher']),
-                       "image_url": record['artwork_thumbnail'],
                        "description_cleaned": self.text_processor.return_clean_text(record['description']),
                        "title_cleaned": self.text_processor.return_clean_text(record['title']),
                        "episode_count": record['episode_count'],
@@ -96,7 +141,6 @@ class PodcastProducer(threading.Thread):
                                        "original_podcast_uuid": previous_podcast_uuid})
             # Set entry in Redis
             else:
-                Podcast(**message)
                 self.validate_minimums(message)
 
                 self.redis_cli.set(f"{self.entity_type}_{message['record_hash']}", message['podcast_uuid'])
@@ -104,10 +148,20 @@ class PodcastProducer(threading.Thread):
                 message['language'] = iso.pt1
                 if message['language'] not in LANGUAGES:
                     raise TypeError(f"Language not supported: {message['language']}.")
-                kafka_message = str(message).encode()
-                self.producer.produce(topic=self.topic, key=str(uuid.uuid4()), value=kafka_message,
-                                      on_delivery=self.delivery_report)
-                # self.producer.flush()
+                message['image_url'] = self.get_image_path(record['artwork_thumbnail'], message['podcast_uuid'])
+                message["rss_url"] = f"{self.get_path(message['podcast_uuid'])}/{message['record_hash']}.rss"
+                Podcast(**message)
+                self.drop_on_kafka(message, self.topic)
+                # Create upload object
+                rss_message = {
+                    'upload_bucket': UPLOAD_BUCKET,
+                    'file_path': self.get_path(message['podcast_uuid']),
+                    'file_name': f"{message['record_hash']}.rss",
+                    'url': record['rss'],
+                    'content_type': 'rss',
+                    'field': 'rss_url'
+                }
+                self.drop_on_kafka(rss_message, KAFKA_UPLOAD_TOPIC)
 
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())

@@ -102,6 +102,7 @@ CREATE TABLE podcast_purgatory (
     , language                                                                  TEXT                                             -- to OS
     , description_cleaned                                                       TEXT
     , image_url                                                                 TEXT                                           -- to OS
+    , original_url                                                              TEXT                                        NOT NULL        -- to OS
     , rss_url                                                                   TEXT                                          -- to OS
 ) PARTITION BY HASH (podcast_purgatory_id);
 CREATE INDEX idx_purgatory_purgatory_id                                         ON podcast_purgatory                                USING btree (podcast_purgatory_id);
@@ -139,6 +140,7 @@ CREATE TABLE podcast_quality (
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , vector                                                                    BYTEA                                       NOT NULL        -- to OS
     , image_url                                                                 TEXT                                                		-- to OS
+    , original_url                                                              TEXT                                        NOT NULL        -- to OS
     , rss_url                                                                   TEXT                                		NOT NULL        -- to OS
 --    , PRIMARY KEY (active_id)
 --    , CONSTRAINT fk_podcast_quality_index_status                				FOREIGN KEY (index_status)                   REFERENCES struct_type (struct_type_id)
