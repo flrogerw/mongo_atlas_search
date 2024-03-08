@@ -119,7 +119,7 @@ class EpisodeConsumer(threading.Thread):
                                             kafka_message['is_explicit']) if item.explicit else kafka_message[
                     'is_explicit'],
                 "publisher": item.author.get_text() if item.author else kafka_message['publisher'],
-                # episode_message["image_url": record['artwork_thumbnail'],
+                "image_url": kafka_message['image_url'],
                 "description_cleaned": ProcessText.return_clean_text(
                     item.description.get_text()) if item.description else '',
                 "title_cleaned": ProcessText.return_clean_text(

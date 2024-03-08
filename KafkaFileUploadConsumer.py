@@ -9,7 +9,7 @@ import redis
 from configparser import ConfigParser
 from confluent_kafka import Consumer, KafkaException, KafkaError
 from dotenv import load_dotenv
-from thread_workers.FileUploadConsumer import ImageConsumer
+from thread_workers.FileUploadConsumer import FileUploadConsumer
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
 
@@ -65,7 +65,7 @@ def flush_queues(logger):
             errors_q.queue.clear()
 
         if update_list:
-            x=0
+            print(update_list)
             # logger.insert_many('episode_quality', quality_list)
         if errors_list:
             logger.insert_many('error_log', errors_list)
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = ImageConsumer(jobs_q,
+            w = FileUploadConsumer(jobs_q,
                               update_q,
                               errors_q,
                               thread_lock)

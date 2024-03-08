@@ -17,7 +17,6 @@ from logger.Logger import ErrorLogger
 from schemas.validation import Podcast
 
 load_dotenv()
-
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 REQUIRED_ELEMENTS = os.getenv('REQUIRED_ELEMENTS').split(",")
 UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
@@ -68,7 +67,7 @@ class PodcastProducer(threading.Thread):
     def get_image_path(self, image_url, parent_uuid):
         try:
             image_head = requests.head(image_url, timeout=1.0)
-            if image_head.headers['Content-Type'] in IMAGE_MIME_TYPES:
+            if image_head.status_code == 200 and image_head.headers['Content-Type'] in IMAGE_MIME_TYPES:
                 _, extension = image_head.headers["content-type"].split("/")  # Cheesy way.  Needs better
                 image_name = hashlib.md5(str(image_url).encode()).hexdigest()
                 previous_image = self.redis_cli.get(f"image_{image_name}")
@@ -82,7 +81,9 @@ class PodcastProducer(threading.Thread):
                         'file_name': f"{image_name}.{extension}",
                         'url': image_url,
                         'content_type': 'image',
-                        'field': 'image_url'
+                        'field': 'image_url',
+                        'mime_type': image_head.headers['Content-Type'],
+                        'podcast_uuid': parent_uuid
                     }
                     self.drop_on_kafka(image_message, KAFKA_UPLOAD_TOPIC)
                 else:
@@ -159,7 +160,9 @@ class PodcastProducer(threading.Thread):
                     'file_name': f"{message['record_hash']}.rss",
                     'url': record['rss'],
                     'content_type': 'rss',
-                    'field': 'rss_url'
+                    'field': 'rss_url',
+                    'mime_type': 'application/rss+xml',
+                    'podcast_uuid': message['podcast_uuid']
                 }
                 self.drop_on_kafka(rss_message, KAFKA_UPLOAD_TOPIC)
 

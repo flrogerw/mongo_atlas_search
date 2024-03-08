@@ -8,3 +8,4 @@ config/kafka-client.ini
 /archives/podcast_rank_1000.tsv
 /archives/stations_20240126.tsv
 /archives/*.db
+/.idea/
