@@ -64,9 +64,28 @@ class PodcastProducer(threading.Thread):
     def get_path(self, path_uuid):
         return f"{path_uuid[-1:]}/{path_uuid[-2:]}/{path_uuid[-3:]}/{path_uuid[-4:]}/{path_uuid}"
 
+    def get_rss_path(self, message):
+        rss_head = requests.head(message['original_url'], timeout=2)
+        if rss_head.status_code == 200:
+            rss_message = {
+                'upload_bucket': UPLOAD_BUCKET,
+                'file_path': self.get_path(message['podcast_uuid']),
+                'file_name': f"{message['record_hash']}.rss",
+                'url': message['original_url'],
+                'content_type': 'rss',
+                'field': 'rss_url',
+                'mime_type': 'application/rss+xml',
+                'podcast_uuid': message['podcast_uuid']
+            }
+            self.drop_on_kafka(rss_message, KAFKA_UPLOAD_TOPIC)
+            file_path = f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{self.get_path(message['podcast_uuid'])}/{message['record_hash']}.rss"
+        else:
+            file_path = f"URL returned a {rss_head.status_code} status code"
+        return file_path
+
     def get_image_path(self, image_url, parent_uuid):
         try:
-            image_head = requests.head(image_url, timeout=1.0)
+            image_head = requests.head(image_url, timeout=2.0)
             if image_head.status_code == 200 and image_head.headers['Content-Type'] in IMAGE_MIME_TYPES:
                 _, extension = image_head.headers["content-type"].split("/")  # Cheesy way.  Needs better
                 image_name = hashlib.md5(str(image_url).encode()).hexdigest()
@@ -114,27 +133,26 @@ class PodcastProducer(threading.Thread):
                 if element not in record:
                     raise TypeError(f"Record is missing required element: {element}.")
             message = {
-                       "original_url": record['rss'],
-                       "language": record['language'],
-                       "is_explicit": bool(record['explicit']),
-                       "podcast_uuid": str(uuid.uuid5(self.namespace, record['rss'])),
-                       "publisher": self.text_processor.return_clean_text(record['publisher']),
-                       "description_cleaned": self.text_processor.return_clean_text(record['description']),
-                       "title_cleaned": self.text_processor.return_clean_text(record['title']),
-                       "episode_count": record['episode_count'],
-                       "readability": 0,
-                       "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
-                       if record['listen_score_global_rank'] else 0,
-                       "description_selected": 410,
-                       "record_hash": hashlib.md5(str(record).encode()).hexdigest(),
-                       "advanced_popularity": 1}
+                "original_url": record['rss'],
+                "language": record['language'],
+                "is_explicit": bool(record['explicit']),
+                "podcast_uuid": str(uuid.uuid5(self.namespace, record['rss'])),
+                "publisher": self.text_processor.return_clean_text(record['publisher']),
+                "description_cleaned": self.text_processor.return_clean_text(record['description']),
+                "title_cleaned": self.text_processor.return_clean_text(record['title']),
+                "episode_count": record['episode_count'],
+                "readability": 0,
+                "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
+                if record['listen_score_global_rank'] else 0,
+                "description_selected": 410,
+                "record_hash": hashlib.md5(str(record).encode()).hexdigest(),
+                "advanced_popularity": 1}
 
             # Check for Previous Instance in Redis
             previous_podcast_uuid = self.redis_cli.get(f"{self.entity_type}_{message['record_hash']}")
             # Check for Exact Duplicates using hash of entire record string and hash of Rss URL.
             if previous_podcast_uuid == message['podcast_uuid']:
-                raise TypeError(
-                    "File {} is a duplicate to: {}.".format(message['rss_url'], previous_podcast_uuid))
+                raise TypeError(f"File {message['rss_url']} is a duplicate to: {previous_podcast_uuid}.")
 
             # Same Body Different URL. title says "DELETED"??
             elif previous_podcast_uuid:
@@ -150,11 +168,11 @@ class PodcastProducer(threading.Thread):
                 if message['language'] not in LANGUAGES:
                     raise TypeError(f"Language not supported: {message['language']}.")
                 message['image_url'] = self.get_image_path(record['artwork_thumbnail'], message['podcast_uuid'])
-                message["rss_url"] = f"{self.get_path(message['podcast_uuid'])}/{message['record_hash']}.rss"
+                message["rss_url"] = self.get_rss_path(message)
                 Podcast(**message)
                 self.drop_on_kafka(message, self.topic)
                 # Create upload object
-                rss_message = {
+                kafka_rss_message = {
                     'upload_bucket': UPLOAD_BUCKET,
                     'file_path': self.get_path(message['podcast_uuid']),
                     'file_name': f"{message['record_hash']}.rss",
@@ -164,7 +182,7 @@ class PodcastProducer(threading.Thread):
                     'mime_type': 'application/rss+xml',
                     'podcast_uuid': message['podcast_uuid']
                 }
-                self.drop_on_kafka(rss_message, KAFKA_UPLOAD_TOPIC)
+                self.drop_on_kafka(kafka_rss_message, KAFKA_UPLOAD_TOPIC)
 
         except InvalidLanguageValue as err:
             # print(traceback.format_exc())

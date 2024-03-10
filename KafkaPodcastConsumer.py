@@ -82,7 +82,7 @@ def put_episodes(msgs):
         for msg in msgs:
             if msg['episode_count'] > 0:
                 episode_message = {
-                    "rss_url": msg['rss_url'],
+                    "rss_url": msg['original_url'],
                     "language": msg['language'],
                     "is_explicit": msg['is_explicit'],
                     "podcast_id": msg['podcast_quality_id'],

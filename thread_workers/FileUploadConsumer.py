@@ -4,13 +4,13 @@ import queue
 import traceback
 import requests
 import boto3
-from botocore.exceptions import NoCredentialsError
+from requests.adapters import HTTPAdapter
 from logger.Logger import ErrorLogger
 from dotenv import load_dotenv
 
+adapter = HTTPAdapter(max_retries=2)
 load_dotenv()
 DEFAULT_IMAGE_PATH = os.getenv('DEFAULT_IMAGE_PATH')
-
 
 class FileUploadConsumer(threading.Thread):
     def __init__(self,
@@ -21,6 +21,9 @@ class FileUploadConsumer(threading.Thread):
                  *args,
                  **kwargs):
 
+        self.req_session = requests.Session()
+        self.req_session.mount('http://', adapter)
+        self.req_session.mount('https://', adapter)
         self.logger = ErrorLogger(thread_lock, errors_q, None, None)
         self.job_queue = jobs_q
         self.errors_q = errors_q
@@ -41,28 +44,34 @@ class FileUploadConsumer(threading.Thread):
         try:
             # If we can store xml as bytes I can remove this part
             if kafka_message['mime_type'] == 'application/rss+xml':
-                res = requests.get(kafka_message['url'])
+                res = self.req_session.get(kafka_message['url'], timeout=2.0)
                 if res.status_code == 200:
                     self.s3.put_object(
                         Body=res.text,
                         Bucket=kafka_message['upload_bucket'],
                         Key=f"{kafka_message['file_path']}/{kafka_message['file_name']}",
                         ContentType='application/rss+xml')
+                else:
+                    self.update_q.put(dict({
+                        'podcast_uuid': kafka_message['podcast_uuid'],
+                        'rss_url': f"URL returned a {res.status_code} error"
+                    }))
+
             else:
-                res = requests.get(kafka_message['url'], stream=True).raw
-                self.s3.upload_fileobj(
-                    res,
-                    kafka_message['upload_bucket'],
-                    f"{kafka_message['file_path']}/{kafka_message['file_name']}",
-                    ExtraArgs={'ContentType': kafka_message['mime_type']})
-        except NoCredentialsError:
-            raise
+                res = self.req_session.get(kafka_message['url'], stream=True)
+                if res.status_code == 200:
+                    self.s3.upload_fileobj(
+                        res.raw,
+                        kafka_message['upload_bucket'],
+                        f"{kafka_message['file_path']}/{kafka_message['file_name']}",
+                        ExtraArgs={'ContentType': kafka_message['mime_type']})
+                else:
+                    self.update_q.put(dict({
+                        'podcast_uuid': kafka_message['podcast_uuid'],
+                        'image_url': DEFAULT_IMAGE_PATH
+                    }))
         except Exception:
-            self.update_q.put(dict({
-                'podcast_uuid': kafka_message['podcast_uuid'],
-                'image_url': DEFAULT_IMAGE_PATH
-            }))
-            pass
+            raise
 
     def process(self, kafka_message):
         try:

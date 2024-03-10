@@ -106,7 +106,7 @@ class EpisodeConsumer(threading.Thread):
             if hasattr(item.guid, 'get_text'):
                 episode_uuid = self.get_guid(str(item.guid.get_text()))
             else:
-                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('url')))
+                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('rss_url')))
 
             return {
                 "episode_uuid": episode_uuid,
