@@ -7,7 +7,9 @@ import boto3
 from requests.adapters import HTTPAdapter
 from logger.Logger import ErrorLogger
 from dotenv import load_dotenv
+from urllib3.exceptions import InsecureRequestWarning, ConnectionError
 
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 adapter = HTTPAdapter(max_retries=2)
 load_dotenv()
 DEFAULT_IMAGE_PATH = os.getenv('DEFAULT_IMAGE_PATH')
@@ -44,7 +46,7 @@ class FileUploadConsumer(threading.Thread):
         try:
             # If we can store xml as bytes I can remove this part
             if kafka_message['mime_type'] == 'application/rss+xml':
-                res = self.req_session.get(kafka_message['url'], timeout=2.0)
+                res = self.req_session.get(kafka_message['url'], timeout=2.0, verify=False)
                 if res.status_code == 200:
                     self.s3.put_object(
                         Body=res.text,
@@ -70,6 +72,8 @@ class FileUploadConsumer(threading.Thread):
                         'podcast_uuid': kafka_message['podcast_uuid'],
                         'image_url': DEFAULT_IMAGE_PATH
                     }))
+        except ConnectionError:
+            raise
         except Exception:
             raise
 
@@ -77,5 +81,5 @@ class FileUploadConsumer(threading.Thread):
         try:
             self.transfer_file(kafka_message)
         except Exception as err:
-            print(traceback.format_exc())
+            # print(traceback.format_exc())
             self.logger.log_to_errors(kafka_message['url'], str(err), traceback.format_exc(), 1)

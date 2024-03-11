@@ -7,8 +7,8 @@ import threading
 from datetime import datetime
 from configparser import ConfigParser
 from confluent_kafka import Producer, KafkaError, KafkaException
-from confluent_avro import AvroKeyValueSerde, SchemaRegistry
-from confluent_avro.schema_registry import HTTPBasicAuth
+# from confluent_avro import AvroKeyValueSerde, SchemaRegistry
+# from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from fetchers.ListenNotesFetcher import ListenNotesFetcher

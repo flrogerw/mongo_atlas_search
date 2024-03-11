@@ -9,8 +9,8 @@ import threading
 from iso639 import Lang
 from iso639.exceptions import InvalidLanguageValue
 from confluent_kafka import KafkaException
-from confluent_avro import AvroKeyValueSerde, SchemaRegistry
-from confluent_avro.schema_registry import HTTPBasicAuth
+# from confluent_avro import AvroKeyValueSerde, SchemaRegistry
+# from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from Errors import ValidationError, QuarantineError
 from logger.Logger import ErrorLogger
@@ -65,7 +65,7 @@ class PodcastProducer(threading.Thread):
         return f"{path_uuid[-1:]}/{path_uuid[-2:]}/{path_uuid[-3:]}/{path_uuid[-4:]}/{path_uuid}"
 
     def get_rss_path(self, message):
-        rss_head = requests.head(message['original_url'], timeout=2)
+        rss_head = requests.head(message['original_url'], timeout=2, verify=False)
         if rss_head.status_code == 200:
             rss_message = {
                 'upload_bucket': UPLOAD_BUCKET,
@@ -85,7 +85,7 @@ class PodcastProducer(threading.Thread):
 
     def get_image_path(self, image_url, parent_uuid):
         try:
-            image_head = requests.head(image_url, timeout=2.0)
+            image_head = requests.head(image_url, verify=False, timeout=2.0)
             if image_head.status_code == 200 and image_head.headers['Content-Type'] in IMAGE_MIME_TYPES:
                 _, extension = image_head.headers["content-type"].split("/")  # Cheesy way.  Needs better
                 image_name = hashlib.md5(str(image_url).encode()).hexdigest()
