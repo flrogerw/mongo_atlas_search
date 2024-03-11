@@ -55,30 +55,32 @@ def get_Producer():
         config_parser = ConfigParser()
         config_parser.read('config/kafka.ini')
         config = dict(config_parser['local_producer'])
-        config['transactional.id'] = 'poc-transactions'
+        config['transactional.id'] = str(uuid.uuid4())
         kafka_producer = Producer(config)
         kafka_producer.init_transactions()
         return kafka_producer
-    except Exception as e:
-        print(e)
+    except Exception:
         raise
 
 
 def get_consumer(topic=KAFKA_TOPIC):
-    config_parser = ConfigParser()
-    config_parser.read('./config/kafka.ini')
-    config = dict(config_parser['local_consumer'])
-    config['group.id'] = 'podcast_consumer'
-    kafka_consumer = Consumer(config)
-    kafka_consumer.subscribe([topic])
-    return kafka_consumer
+    try:
+        config_parser = ConfigParser()
+        config_parser.read('./config/kafka.ini')
+        config = dict(config_parser['local_consumer'])
+        config['group.id'] = 'podcast_consumer'
+        kafka_consumer = Consumer(config)
+        kafka_consumer.subscribe([topic])
+        return kafka_consumer
+    except Exception:
+        raise
 
 
 def put_episodes(msgs):
     try:
         producer = get_Producer()
         producer.begin_transaction()
-        #producer.poll(0)
+        producer.poll(0)
         for msg in msgs:
             if msg['episode_count'] > 0:
                 episode_message = {
@@ -88,11 +90,10 @@ def put_episodes(msgs):
                     "podcast_id": msg['podcast_quality_id'],
                     "image_url": msg['image_url'],
                     "publisher": msg['publisher']
-                     }
+                }
                 kafka_message = str(episode_message).encode()
                 producer.produce(topic=KAFKA_EPISODE_TOPIC, key=str(uuid.uuid4()), value=kafka_message,
                                  on_delivery=delivery_report)
-
     except KafkaError:
         raise
     except Exception:
@@ -150,7 +151,7 @@ def monitor(id, stop):
             elapsed_time = datetime.now() - start_time
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
     except Exception as e:
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
                           "entity_type": 2,
@@ -206,7 +207,7 @@ if __name__ == '__main__':
         stop_monitor = True
 
     except Exception as err:
-        #print(traceback.format_exc())
+        # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
                           "entity_type": 2,

@@ -15,6 +15,9 @@ from dotenv import load_dotenv
 from Errors import ValidationError, QuarantineError
 from logger.Logger import ErrorLogger
 from schemas.validation import Podcast
+from urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 load_dotenv()
 LANGUAGES = os.getenv('LANGUAGES').split(",")
