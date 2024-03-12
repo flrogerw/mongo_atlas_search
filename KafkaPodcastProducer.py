@@ -146,8 +146,8 @@ if __name__ == '__main__':
             threads.append(w)
 
         fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        offset, limit = fetcher.get_records_offset('podcasts', SERVER_INGEST_POOL, SERVER_ID)
-        records = fetcher.fetch('podcasts', limit, offset)
+        start, end = fetcher.get_records_offset('podcasts', SERVER_INGEST_POOL, SERVER_ID)
+        records = fetcher.fetch('podcasts', start, end)
         start_time = datetime.now()
         for record in records:
             total_record_count += 1

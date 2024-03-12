@@ -115,15 +115,16 @@ class Db:
         finally:
             db_connection.close()
 
-    def select_pagination(self, table_name, cols, limit, offset):
+    def select_pagination(self, table_name, cols, start, end):
         try:
             db_connection = self.get_connection()
             cur = db_connection.cursor()
             columns = ', '.join(cols)
-            cur.execute("SELECT %s FROM %s LIMIT %d OFFSET %d" % (columns, table_name, limit, offset))
+            cur.execute("SELECT %s FROM %s WHERE rowid BETWEEN %d and %d" % (columns, table_name, start, end))
             # return self.cur.fetchall()
             return [dict(row) for row in cur.fetchall()]
         except Error:
+            print(traceback.format_exc())
             raise
         finally:
             db_connection.close()

@@ -8,10 +8,10 @@ class ListenNotesFetcher:
     def __init__(self, file_location):
         self.db = Db(file_location)
 
-    def fetch(self, table_name, limit, offset=0):
+    def fetch(self, table_name, start, end):
         try:
             columns = ["*"]
-            rows = self.db.select_pagination(table_name, columns, limit, offset)
+            rows = self.db.select_pagination(table_name, columns, start, end)
             return rows
         except Exception:
             raise
@@ -27,14 +27,14 @@ class ListenNotesFetcher:
         try:
             record_count = self.get_row_count(table_name)
             chunk_size = int(record_count / server_count)
-            offset = (chunk_size * server_id) + 1
+            start = (chunk_size * server_id) + 1
             if server_count == 1:
-                limit = record_count
+                end = record_count
             elif server_id + 1 == server_count:
-                limit = record_count - offset
+                end = record_count - start
             else:
-                limit = chunk_size
-            return offset, limit
+                end = chunk_size
+            return start, end
         except Exception:
             raise
 
