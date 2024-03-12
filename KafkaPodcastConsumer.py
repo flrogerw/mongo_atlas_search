@@ -189,6 +189,7 @@ if __name__ == '__main__':
                         # End of partition event
                         sys.stderr.write('%% %s [%d] reached end at offset %d\n' %
                                          (event.topic(), event.partition(), event.offset()))
+                        pass
                     elif event.error():
                         raise KafkaException(event.error())
                 else:
@@ -199,10 +200,10 @@ if __name__ == '__main__':
             else:
                 continue
 
+        # The following lines are moot but left for consistency
         jobs_q.join()
         for thread in threads:
             thread.join()
-
         print('All Threads have Finished')
         stop_monitor = True
 

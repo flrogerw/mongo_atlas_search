@@ -28,10 +28,10 @@ class PodcastConsumer(threading.Thread):
     def run(self):
         while True:
             try:
-                task = self.job_queue.get(timeout=30)
+                task = self.job_queue.get()
                 self.process(task)
             except queue.Empty:
-                return
+                pass
 
     def get_search_fields(self, kafka_message):
         try:
