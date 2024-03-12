@@ -32,6 +32,8 @@ FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 REDIS_HOST = os.getenv('REDIS_HOST')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
+SERVER_INGEST_POOL = int(os.getenv('SERVER_INGEST_POOL'))
+SERVER_ID = int(os.getenv('SERVER_ID'))
 
 thread_lock = threading.Lock()
 text_processor = ProcessText
@@ -89,7 +91,7 @@ def flush_queues(logger):
 
         if purgatory_list:
             purgatory_inserts = logger.append_ingest_ids('podcast', 'purgatory', purgatory_list)
-            for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash'] # Thank Ray for this cluster
+            for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash']  # Thank Ray for this cluster
             logger.insert_many('podcast_purgatory', purgatory_inserts)
         if quarantine_list:
             logger.insert_many('podcast_quarantine', quarantine_list)
@@ -144,7 +146,8 @@ if __name__ == '__main__':
             threads.append(w)
 
         fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        records = fetcher.fetch('podcasts', JOB_RECORDS_TO_PULL)
+        offset, limit = fetcher.get_records_offset('podcasts', SERVER_INGEST_POOL, SERVER_ID)
+        records = fetcher.fetch('podcasts', limit, offset)
         start_time = datetime.now()
         for record in records:
             total_record_count += 1

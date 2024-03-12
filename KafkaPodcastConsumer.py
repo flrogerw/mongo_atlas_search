@@ -8,7 +8,7 @@ import spacy
 import traceback
 import sys
 from configparser import ConfigParser
-from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
+from confluent_kafka import Producer, Consumer, KafkaException, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from thread_workers.PodcastConsumer import PodcastConsumer
 from sql.PostgresDb import PostgresDb
@@ -70,6 +70,7 @@ def get_consumer(topic=KAFKA_TOPIC):
         config = dict(config_parser['local_consumer'])
         config['group.id'] = 'podcast_consumer'
         kafka_consumer = Consumer(config)
+        # kafka_consumer.assign([TopicPartition(topic, 0)])
         kafka_consumer.subscribe([topic])
         return kafka_consumer
     except Exception:
@@ -208,7 +209,7 @@ if __name__ == '__main__':
         stop_monitor = True
 
     except Exception as err:
-        # print(traceback.format_exc())
+        print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
                           "entity_type": 2,

@@ -127,3 +127,16 @@ class Db:
             raise
         finally:
             db_connection.close()
+
+    def get_row_count(self, table_name):
+        try:
+            db_connection = self.get_connection()
+            cur = db_connection.cursor()
+            cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cur.fetchone()
+            return count[0]
+        except Exception:
+            raise
+        finally:
+            db_connection.commit()
+            db_connection.close()
