@@ -111,13 +111,13 @@ def flush_queues(logger):
 
 def monitor(x, stop):
     try:
-        start = datetime.now()
+        starting_time = datetime.now()
         while True:
             time.sleep(10)
             flush_queues(db)
             if stop():
                 break
-            elapsed_time = datetime.now() - start
+            elapsed_time = datetime.now() - starting_time
             print(f'Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
     except Exception as e:
         print(traceback.format_exc())
@@ -154,6 +154,7 @@ if __name__ == '__main__':
             total_record_count += 1
             jobs_q.put(record)
         print(f'Jobs Queue Populated with {total_record_count} in {datetime.now() - start_time}', flush=True)
+        print(f'Records Range:  {start} to {end}', flush=True)
 
         # Start Monitor Thread
         print('Starting Monitor Thread')
