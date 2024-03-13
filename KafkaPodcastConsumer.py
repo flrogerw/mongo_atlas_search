@@ -83,7 +83,7 @@ def get_consumer(topic=KAFKA_TOPIC):
         config['group.id'] = 'podcast_consumer'
         kafka_consumer = Consumer(config)
         partitions = get_partitions(topic)
-        kafka_consumer.assign([TopicPartition(topic, SERVER_ID)])
+        kafka_consumer.assign(partitions)
         # kafka_consumer.subscribe([topic])
         return kafka_consumer
     except Exception:

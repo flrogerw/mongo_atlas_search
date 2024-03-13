@@ -7,7 +7,7 @@ import traceback
 import sys
 import redis
 from configparser import ConfigParser
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Consumer, KafkaException, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from thread_workers.FileUploadConsumer import FileUploadConsumer
 from sql.PostgresDb import PostgresDb
@@ -45,6 +45,15 @@ if FLUSH_REDIS_ON_START:
     redis_cli.flushdb()  # Clear hash cache
 
 
+def get_partitions(topic):
+    try:
+        chunk_size = int(NUMBER_OF_PARTITIONS / SERVER_CLUSTER_SIZE)
+        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[SERVER_ID]
+        return [TopicPartition(topic, partition) for partition in partitions]
+    except Exception:
+        raise
+
+
 def get_consumer(topic=KAFKA_TOPIC):
     try:
         config_parser = ConfigParser()
@@ -52,7 +61,9 @@ def get_consumer(topic=KAFKA_TOPIC):
         config = dict(config_parser['local_consumer'])
         config['group.id'] = 'image_consumer'
         kafka_consumer = Consumer(config)
-        kafka_consumer.subscribe([topic])
+        partitions = get_partitions(topic)
+        kafka_consumer.assign(partitions)
+        # kafka_consumer.subscribe([topic])
         return kafka_consumer
     except Exception:
         raise
@@ -105,9 +116,9 @@ if __name__ == '__main__':
         threads = []
         for i in range(THREAD_COUNT):
             w = FileUploadConsumer(jobs_q,
-                              update_q,
-                              errors_q,
-                              thread_lock)
+                                   update_q,
+                                   errors_q,
+                                   thread_lock)
             w.start()
             threads.append(w)
 
