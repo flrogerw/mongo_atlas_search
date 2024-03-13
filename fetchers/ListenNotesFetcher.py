@@ -16,25 +16,18 @@ class ListenNotesFetcher:
         except Exception:
             raise
 
-    def get_row_count(self, table_name):
-        try:
-            row_count = self.db.get_row_count(table_name)
-            return row_count
-        except Exception:
-            raise
-
     def get_records_offset(self, table_name, server_count, server_id):
         try:
-            record_count = self.get_row_count(table_name)
+            record_count = self.db.get_row_count(table_name)
+            last_rowid = self.db.get_last_rowid(table_name)
+            if record_count != last_rowid:
+                self.db.reindex_table(table_name)
             chunk_size = int(record_count / server_count)
             start = (chunk_size * server_id) + 1
             if server_id + 1 == server_count:
                 end = record_count
             else:
-                end = start + chunk_size
+                end = (chunk_size * (server_id + 1))
             return start, end
         except Exception:
             raise
-
-    def reindex_db_table(self, table_name):
-        self.db.reindex_table(table_name)

@@ -142,6 +142,19 @@ class Db:
             db_connection.commit()
             db_connection.close()
 
+    def get_last_rowid(self, table_name):
+        try:
+            db_connection = self.get_connection()
+            cur = db_connection.cursor()
+            cur.execute(f"SELECT MAX(rowid) FROM {table_name}")
+            count = cur.fetchone()
+            return count[0]
+        except Exception:
+            raise
+        finally:
+            db_connection.commit()
+            db_connection.close()
+
     def reindex_table(self, table_name):
         temp_table = f"temp_{table_name}"
         db_connection = self.get_connection()

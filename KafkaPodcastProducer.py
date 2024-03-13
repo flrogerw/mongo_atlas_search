@@ -146,7 +146,6 @@ if __name__ == '__main__':
             threads.append(w)
 
         fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        fetcher.reindex_db_table('podcasts')
         start, end = fetcher.get_records_offset('podcasts', SERVER_INGEST_POOL, SERVER_ID)
         records = fetcher.fetch('podcasts', start, end)
         start_time = datetime.now()
