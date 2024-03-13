@@ -25,6 +25,9 @@ DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
 FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 REDIS_HOST = os.getenv('REDIS_HOST')
+SERVER_CLUSTER_SIZE = int(sys.argv[1])
+SERVER_ID = int(sys.argv[2])
+NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)

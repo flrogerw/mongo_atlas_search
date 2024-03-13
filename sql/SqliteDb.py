@@ -104,7 +104,7 @@ class Db:
                     cur.execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='%s';" % table)
                     cur.execute("DELETE FROM '%s';" % table)
                     db_connection.commit()
-                except Exception:
+                except Exception as e:
                     db_connection.commit()
                     self.insert_one('error_log',
                                     {"file_name": 'DATABASE ERROR', "error": str(e),

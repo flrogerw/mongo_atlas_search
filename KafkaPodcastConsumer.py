@@ -29,6 +29,9 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
+SERVER_CLUSTER_SIZE = int(sys.argv[1])
+SERVER_ID = int(sys.argv[2])
+NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
@@ -63,6 +66,15 @@ def get_Producer():
         raise
 
 
+def get_partitions(topic):
+    try:
+        chunk_size = int(NUMBER_OF_PARTITIONS / SERVER_CLUSTER_SIZE)
+        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[SERVER_ID]
+        return [TopicPartition(topic, partition) for partition in partitions]
+    except Exception:
+        raise
+
+
 def get_consumer(topic=KAFKA_TOPIC):
     try:
         config_parser = ConfigParser()
@@ -70,8 +82,9 @@ def get_consumer(topic=KAFKA_TOPIC):
         config = dict(config_parser['local_consumer'])
         config['group.id'] = 'podcast_consumer'
         kafka_consumer = Consumer(config)
-        # kafka_consumer.assign([TopicPartition(topic, 0)])
-        kafka_consumer.subscribe([topic])
+        partitions = get_partitions(topic)
+        kafka_consumer.assign([TopicPartition(topic, SERVER_ID)])
+        # kafka_consumer.subscribe([topic])
         return kafka_consumer
     except Exception:
         raise
