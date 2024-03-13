@@ -4,6 +4,8 @@ import queue
 import time
 import ast
 import uuid
+from itertools import zip_longest
+
 import spacy
 import traceback
 import sys
@@ -30,7 +32,7 @@ DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
-SERVER_ID = int(sys.argv[2])
+CLUSTER_SERVER_ID = int(sys.argv[2])
 NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 # Set up Queues
@@ -68,9 +70,12 @@ def get_Producer():
 
 def get_partitions(topic):
     try:
-        chunk_size = int(NUMBER_OF_PARTITIONS / SERVER_CLUSTER_SIZE)
-        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[SERVER_ID]
-        return [TopicPartition(topic, partition) for partition in partitions]
+        partition_cluster_index = 0
+        partition_clusters = [[] for _ in range(0, SERVER_CLUSTER_SIZE)]
+        for partition in range(0, NUMBER_OF_PARTITIONS):
+            partition_clusters[partition_cluster_index].append(partition)
+            partition_cluster_index = 0 if partition_cluster_index == (SERVER_CLUSTER_SIZE - 1) else partition_cluster_index + 1
+        return [TopicPartition(topic, partition_id) for partition_id in partition_clusters[CLUSTER_SERVER_ID]]
     except Exception:
         raise
 

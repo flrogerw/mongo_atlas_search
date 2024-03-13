@@ -34,7 +34,7 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
-SERVER_ID = int(sys.argv[2])
+CLUSTER_SERVER_ID = int(sys.argv[2])
 NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 thread_lock = threading.Lock()
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             threads.append(w)
 
         fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        start, end = fetcher.get_records_offset('podcasts', SERVER_CLUSTER_SIZE, SERVER_ID)
+        start, end = fetcher.get_records_offset('podcasts', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
         records = fetcher.fetch('podcasts', start, end)
         start_time = datetime.now()
         for record in records:

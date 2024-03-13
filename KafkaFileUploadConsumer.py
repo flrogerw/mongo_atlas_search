@@ -26,7 +26,7 @@ DB_SCHEMA = os.getenv('DB_SCHEMA')
 FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 REDIS_HOST = os.getenv('REDIS_HOST')
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
-SERVER_ID = int(sys.argv[2])
+CLUSTER_SERVER_ID = int(sys.argv[2])
 NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 # Set up Queues
@@ -48,7 +48,7 @@ if FLUSH_REDIS_ON_START:
 def get_partitions(topic):
     try:
         chunk_size = int(NUMBER_OF_PARTITIONS / SERVER_CLUSTER_SIZE)
-        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[SERVER_ID]
+        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[CLUSTER_SERVER_ID]
         return [TopicPartition(topic, partition) for partition in partitions]
     except Exception:
         raise
