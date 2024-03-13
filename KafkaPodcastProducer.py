@@ -35,7 +35,6 @@ THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
 CLUSTER_SERVER_ID = int(sys.argv[2])
-NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 thread_lock = threading.Lock()
 text_processor = ProcessText

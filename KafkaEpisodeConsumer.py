@@ -8,7 +8,7 @@ import traceback
 import sys
 import redis
 from configparser import ConfigParser
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Consumer, KafkaException, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from thread_workers.EpisodeConsumer import EpisodeConsumer
 from sql.PostgresDb import PostgresDb
@@ -16,7 +16,6 @@ from datetime import datetime
 from spacy_langdetect import LanguageDetector
 from spacy.language import Language
 from sentence_transformers import SentenceTransformer
-
 
 # Load System ENV VARS
 load_dotenv()
@@ -31,6 +30,9 @@ DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
 FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
 REDIS_HOST = os.getenv('REDIS_HOST')
+SERVER_CLUSTER_SIZE = int(sys.argv[1])
+CLUSTER_SERVER_ID = int(sys.argv[2])
+NUMBER_OF_PARTITIONS = int(sys.argv[3])
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)
@@ -43,13 +45,13 @@ quarantine_q = queue.Queue()
 thread_lock = threading.Lock()
 entity_struct_id = 1
 
-
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
                             port=6379,
                             charset="utf-8",
                             decode_responses=True)
     redis_cli.flushdb()  # Clear hash cache
+
 
 def get_lang_detector(nlp, name):
     return LanguageDetector()
@@ -62,6 +64,19 @@ nlp.add_pipe('language_detector', last=True)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 
+def get_partitions(topic):
+    try:
+        partition_cluster_index = 0
+        partition_clusters = [[] for _ in range(0, SERVER_CLUSTER_SIZE)]
+        for partition in range(0, NUMBER_OF_PARTITIONS):
+            partition_clusters[partition_cluster_index].append(partition)
+            partition_cluster_index = 0 if partition_cluster_index == (
+                        SERVER_CLUSTER_SIZE - 1) else partition_cluster_index + 1
+        return [TopicPartition(topic, partition_id) for partition_id in partition_clusters[CLUSTER_SERVER_ID]]
+    except Exception:
+        raise
+
+
 def get_consumer(topic=KAFKA_TOPIC):
     try:
         config_parser = ConfigParser()
@@ -69,7 +84,8 @@ def get_consumer(topic=KAFKA_TOPIC):
         config = dict(config_parser['local_consumer'])
         config['group.id'] = 'episode_consumer'
         kafka_consumer = Consumer(config)
-        kafka_consumer.subscribe([topic])
+        partitions = get_partitions(topic)
+        kafka_consumer.assign(partitions)
         return kafka_consumer
     except Exception:
         raise

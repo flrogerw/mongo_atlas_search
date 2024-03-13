@@ -47,9 +47,12 @@ if FLUSH_REDIS_ON_START:
 
 def get_partitions(topic):
     try:
-        chunk_size = int(NUMBER_OF_PARTITIONS / SERVER_CLUSTER_SIZE)
-        partitions = list(zip(*[iter(range(0, NUMBER_OF_PARTITIONS))] * chunk_size))[CLUSTER_SERVER_ID]
-        return [TopicPartition(topic, partition) for partition in partitions]
+        partition_cluster_index = 0
+        partition_clusters = [[] for _ in range(0, SERVER_CLUSTER_SIZE)]
+        for partition in range(0, NUMBER_OF_PARTITIONS):
+            partition_clusters[partition_cluster_index].append(partition)
+            partition_cluster_index = 0 if partition_cluster_index == (SERVER_CLUSTER_SIZE - 1) else partition_cluster_index + 1
+        return [TopicPartition(topic, partition_id) for partition_id in partition_clusters[CLUSTER_SERVER_ID]]
     except Exception:
         raise
 
@@ -59,11 +62,10 @@ def get_consumer(topic=KAFKA_TOPIC):
         config_parser = ConfigParser()
         config_parser.read('./config/kafka.ini')
         config = dict(config_parser['local_consumer'])
-        config['group.id'] = 'image_consumer'
+        config['group.id'] = 'upload_consumer'
         kafka_consumer = Consumer(config)
         partitions = get_partitions(topic)
         kafka_consumer.assign(partitions)
-        # kafka_consumer.subscribe([topic])
         return kafka_consumer
     except Exception:
         raise
@@ -79,8 +81,8 @@ def flush_queues(logger):
             errors_q.queue.clear()
 
         if update_list:
-            print(update_list)
-            # logger.insert_many('episode_quality', quality_list)
+            x = 0
+            # logger.insert_many('episode_quality', update_list)
         if errors_list:
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
