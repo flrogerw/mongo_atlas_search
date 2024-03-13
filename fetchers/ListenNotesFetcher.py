@@ -28,14 +28,13 @@ class ListenNotesFetcher:
             record_count = self.get_row_count(table_name)
             chunk_size = int(record_count / server_count)
             start = (chunk_size * server_id) + 1
-            if server_count == 1:
+            if server_id + 1 == server_count:
                 end = record_count
-            elif server_id + 1 == server_count:
-                end = record_count - start
             else:
-                end = chunk_size
+                end = start + chunk_size
             return start, end
         except Exception:
             raise
 
-
+    def reindex_db_table(self, table_name):
+        self.db.reindex_table(table_name)

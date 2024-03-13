@@ -141,3 +141,15 @@ class Db:
         finally:
             db_connection.commit()
             db_connection.close()
+
+    def reindex_table(self, table_name):
+        temp_table = f"temp_{table_name}"
+        db_connection = self.get_connection()
+        cur = db_connection.cursor()
+        cur.execute(f"CREATE TABLE {temp_table} AS SELECT * FROM {table_name} WHERE 0")
+        cur.execute(f"INSERT INTO {temp_table} SELECT * FROM {table_name}")
+        cur.execute(f"ALTER TABLE {table_name} RENAME TO original_{table_name}")
+        cur.execute(f"ALTER TABLE {temp_table} RENAME TO {table_name}")
+        cur.execute(f"DROP TABLE original_{table_name}")
+        db_connection.commit()
+        db_connection.close()
