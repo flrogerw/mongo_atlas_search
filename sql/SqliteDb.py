@@ -146,6 +146,8 @@ class Db:
         temp_table = f"temp_{table_name}"
         db_connection = self.get_connection()
         cur = db_connection.cursor()
+        cur.execute(f"DROP TABLE IF EXISTS original_{table_name}")
+        cur.execute(f"DROP TABLE IF EXISTS {temp_table}")
         cur.execute(f"CREATE TABLE {temp_table} AS SELECT * FROM {table_name} WHERE 0")
         cur.execute(f"INSERT INTO {temp_table} SELECT * FROM {table_name}")
         cur.execute(f"ALTER TABLE {table_name} RENAME TO original_{table_name}")
