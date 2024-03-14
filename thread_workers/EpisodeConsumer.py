@@ -159,7 +159,7 @@ class EpisodeConsumer(threading.Thread):
                     self.redis_cli.set(f"{self.entity_type}_{episode_message['record_hash']}",
                                        episode_message['episode_uuid'])
                     self.get_search_fields(episode_message)
-                    if episode_message['language'] == 'en':
+                    if episode_message['language'] == 'en' and len(episode_message[READABILITY_FIELD]) > 5:
                         episode_message['readability'] = ProcessText.get_readability(episode_message[READABILITY_FIELD],
                                                                                      self.nlp)
                     with self.thread_lock:

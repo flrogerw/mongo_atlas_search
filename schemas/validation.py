@@ -26,7 +26,7 @@ class Podcast(BaseModel):
 
 
 class Episode(BaseModel):
-    episode_uuid: UUID5 | UUID4
+    episode_uuid: UUID5 | UUID4 | UUID3 | UUID1
     episode_url: str
     podcast_id: PositiveInt
     duration: int
