@@ -106,7 +106,7 @@ class EpisodeConsumer(threading.Thread):
             if hasattr(item.guid, 'get_text'):
                 episode_uuid = self.get_guid(str(item.guid.get_text()))
             else:
-                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('rss_url')))
+                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('url')))
 
             return {
                 "episode_uuid": episode_uuid,
@@ -130,7 +130,7 @@ class EpisodeConsumer(threading.Thread):
                 "index_status": 310,
                 'record_hash': hashlib.md5(str(item).encode()).hexdigest(),
                 "publish_date": int(
-                    parser.parse(item.pubDate.get_text().lower()).timestamp()) if item.pubDate else None
+                    parser.parse(item.pubDate.get_text()).timestamp()) if item.pubDate else None
             }
         except Exception:
             raise
