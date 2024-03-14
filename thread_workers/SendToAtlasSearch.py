@@ -12,7 +12,7 @@ load_dotenv()
 SEARCH_FIELDS = os.getenv('SEARCH_FIELDS')
 
 
-class SendToSearch(threading.Thread):
+class SendToAtlasSearch(threading.Thread):
     def __init__(self, index, jobs_q, errors_q, thread_lock, *args, **kwargs):
         self.index = index
         self.jobs_q = jobs_q

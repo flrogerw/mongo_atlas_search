@@ -142,7 +142,7 @@ class EpisodeConsumer(threading.Thread):
             for item in root.findAll("item"):
                 episode_message = self.get_message(item, kafka_message)
                 Episode(**episode_message)
-                self.validate_minimums(episode_message)
+                # self.validate_minimums(episode_message)
 
                 # Check for Previous Instance in Redis
                 previous_episode_uuid = self.redis_cli.get(f"{self.entity_type}_{episode_message['record_hash']}")

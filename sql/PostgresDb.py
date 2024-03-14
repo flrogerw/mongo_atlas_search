@@ -2,6 +2,7 @@ import psycopg2
 import psycopg2.extras
 from psycopg2.errors import UniqueViolation
 import traceback
+import itertools
 
 
 class PostgresDb:
@@ -48,7 +49,7 @@ class PostgresDb:
                 print('UniqueViolation')
                 self.connection.commit()
                 columns = f"{entity_type}_uuid,original_{entity_type}_uuid,duplicate_file_name"
-                values = (entry[f"{entity_type}_uuid"],entry[f"{entity_type}_uuid"], 'DB INSERT DUPLICATE')
+                values = (entry[f"{entity_type}_uuid"], entry[f"{entity_type}_uuid"], 'DB INSERT DUPLICATE')
                 try:
                     query = f"INSERT INTO {entity_type}_quarantine ({columns}) VALUES {values}"
                     self.cursor.execute(query)
@@ -106,6 +107,31 @@ class PostgresDb:
             self.cursor.execute(query)
             data = [dict(row) for row in self.cursor.fetchall()]
             return data
+        except Exception:
+            print(traceback.format_exc())
+            pass
+
+    def select_batches(self, table_name, columns, chunk_size=10000):
+        try:
+            query = f"SELECT {columns} FROM {table_name} JOIN podcast_ingest as pi ON pi.podcast_ingest_id = {table_name}.{table_name}_id;"
+
+            def _batches():
+                with \
+                        self.connection.cursor(name='process-cursor',
+                                               cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.itersize = chunk_size
+                    cur.arraysize = chunk_size
+                    cur.execute(query)
+
+                    while True:
+                        batch = [dict(row) for row in cur.fetchmany()]
+                        if not batch:
+                            break
+                        yield batch
+
+            batches = iter(_batches())
+            first_batch = next(batches)
+            return itertools.chain((first_batch,), batches)
         except Exception:
             print(traceback.format_exc())
             pass
