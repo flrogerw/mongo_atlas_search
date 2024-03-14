@@ -11,7 +11,7 @@ from nlp.ProcessText import ProcessText
 from dotenv import load_dotenv
 from logger.Logger import ErrorLogger
 from schemas.validation import Episode
-from Errors import ValidationError, QuarantineError
+from Errors import QuarantineError
 from dateutil import parser
 from bs4 import BeautifulSoup
 
@@ -170,7 +170,7 @@ class EpisodeConsumer(threading.Thread):
             self.logger.log_to_purgatory(episode_message, str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj)
-        except ValidationError as err:
+        except ValueError as err:
             self.logger.log_to_purgatory(episode_message, str(err.errors()))
         except Exception as err:
             self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc(), 1)

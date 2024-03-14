@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
-from pydantic import BaseModel, UUID5, UUID4, UUID3, UUID1, StrictBool, PastDatetime, PositiveInt, PositiveFloat
+from pydantic import BaseModel, StrictBool, PastDatetime, PositiveInt, PositiveFloat
+from uuid import UUID
 from typing import Union, ClassVar, Optional
 
 load_dotenv()
@@ -8,7 +9,7 @@ LANGUAGES = os.getenv('LANGUAGES').split(",")
 
 
 class Podcast(BaseModel):
-    podcast_uuid: UUID5 | UUID4 | UUID3 | UUID1
+    podcast_uuid: UUID
     rss_url: str
     original_url: str
     language: ClassVar[list[str]] = LANGUAGES
@@ -26,7 +27,7 @@ class Podcast(BaseModel):
 
 
 class Episode(BaseModel):
-    episode_uuid: UUID5 | UUID4 | UUID3 | UUID1
+    episode_uuid: UUID
     episode_url: str
     podcast_id: PositiveInt
     duration: int
