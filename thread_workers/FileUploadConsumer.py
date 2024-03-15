@@ -14,6 +14,7 @@ adapter = HTTPAdapter(max_retries=2)
 load_dotenv()
 DEFAULT_IMAGE_PATH = os.getenv('DEFAULT_IMAGE_PATH')
 
+
 class FileUploadConsumer(threading.Thread):
     def __init__(self,
                  jobs_q,

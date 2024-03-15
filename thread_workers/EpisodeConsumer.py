@@ -92,7 +92,6 @@ class EpisodeConsumer(threading.Thread):
             return False
         else:
             return string_bool
-            # return default
 
     def get_guid(self, guid_str):
         try:
@@ -171,6 +170,6 @@ class EpisodeConsumer(threading.Thread):
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj)
         except ValueError as err:
-            self.logger.log_to_purgatory(episode_message, str(err.errors()))
+            self.logger.log_to_purgatory(episode_message, str(err))
         except Exception as err:
             self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc(), 1)

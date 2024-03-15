@@ -195,8 +195,8 @@ class PodcastProducer(threading.Thread):
             self.logger.log_to_purgatory(message, str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj)
-        except ValidationError as err:
-            self.logger.log_to_purgatory(message, str(err.errors()))
+        except ValueError as err:
+            self.logger.log_to_purgatory(message, str(err))
         except KafkaException as err:
             # print(traceback.format_exc())
             self.logger.log_to_errors(message['podcast_uuid'], str(err), traceback.format_exc(), 2)

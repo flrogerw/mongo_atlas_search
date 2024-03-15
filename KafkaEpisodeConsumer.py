@@ -135,7 +135,7 @@ def monitor(id, stop):
         start_time = datetime.now()
         while True:
             time.sleep(10)
-            total_completed += (quality_q.qsize() + errors_q.qsize())
+            total_completed += (quality_q.qsize() + purgatory_q.qsize() + errors_q.qsize())
             flush_queues(db)
             if stop():
                 break
