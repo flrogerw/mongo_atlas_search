@@ -111,9 +111,9 @@ class PostgresDb:
             print(traceback.format_exc())
             pass
 
-    def select_batches(self, table_name, columns, chunk_size=10000):
+    def select_batches(self, table_name, columns, chunk_size, language='en'):
         try:
-            query = f"SELECT {columns} FROM {table_name} JOIN podcast_ingest as pi ON pi.podcast_ingest_id = {table_name}.{table_name}_id;"
+            query = f"SELECT {columns} FROM {table_name}  JOIN podcast_ingest as pi ON pi.podcast_ingest_id = {table_name}.{table_name}_id WHERE {table_name}.language = '{language}';"
 
             def _batches():
                 with \

@@ -65,7 +65,7 @@ def monitor(id, stop):
         start_time = datetime.now()
         count = 0
         while True:
-            time.sleep(10)
+            time.sleep(3)
             count += quality_q.qsize()
             elapsed_time = datetime.now() - start_time
             print(f'Insert Queue Size: {quality_q.qsize()} records, Total Records Inserted: {count}, Elapsed Time: {elapsed_time}')
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
         language = 'en'
         db.connect()
-        batches = db.select_batches('podcast_quality', SEARCH_FIELDS, LIMIT)
+        batches = db.select_batches('podcast_quality', SEARCH_FIELDS, LIMIT, language)
         for batch in batches:
             jobs_q.put(batch)
             total += len(batch)
