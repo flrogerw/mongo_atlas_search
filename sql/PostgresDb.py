@@ -91,15 +91,6 @@ class PostgresDb:
         finally:
             self.connection.commit()
 
-    def select_search_fields(self, table_name, columns, lang, offset, limit):
-        try:
-            query = f"SELECT {columns} FROM {table_name} WHERE language='{lang}' ORDER BY {table_name}_id OFFSET {offset} LIMIT {limit};"
-            self.cursor.execute(query)
-            data = [dict(row) for row in self.cursor.fetchall()]
-            return data
-        except Exception:
-            print(traceback.format_exc())
-            pass
 
     def select_all(self, table_name, columns, limit=10000):
         try:
@@ -111,9 +102,12 @@ class PostgresDb:
             print(traceback.format_exc())
             pass
 
-    def select_batches(self, table_name, columns, chunk_size, language='en'):
+    def select_mongo_batches(self, table_name, columns, chunk_size, entity, has_ingest_table=False, languages=['en']):
         try:
-            query = f"SELECT {columns} FROM {table_name}  JOIN podcast_ingest as pi ON pi.podcast_ingest_id = {table_name}.{table_name}_id WHERE {table_name}.language = '{language}';"
+            join_statement = ''
+            if has_ingest_table:
+                join_statement = f"JOIN {entity}_ingest as pi ON pi.{entity}_ingest_id = {table_name}.{table_name}_id"
+            query = f"SELECT {columns} FROM {table_name} {join_statement}  WHERE {table_name}.language IN ({str(languages)[1:-1]});"
 
             def _batches():
                 with \
