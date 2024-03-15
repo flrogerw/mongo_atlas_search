@@ -56,7 +56,7 @@ def flush_queues(logger):
             logger.insert_many('error_log', errors_list)
         logger.close_connection()
         mongo_collection.insert_many(search_list)
-    except Exception as e:
+    except Exception:
         raise
 
 
@@ -74,7 +74,7 @@ def monitor(id, stop):
                 break
             else:
                 continue
-    except Exception as e:
+    except Exception as err:
         print(traceback.format_exc())
         logger.log_to_errors('DATABASE_MONGO_INGESTER_ERROR', str(err), traceback.format_exc(), 1)
         pass
