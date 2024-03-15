@@ -33,7 +33,7 @@ db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
 mongo_client = pymongo.MongoClient(
     f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/?directConnection=true")
 mongo_db = mongo_client[MONGO_DATABASE_NAME]
-mongo_collection = mongo_db["podcast_en"]
+mongo_collection = mongo_db["podcast_es"]
 total = 0
 
 # Set up Queues
@@ -92,7 +92,7 @@ if __name__ == '__main__':
             threads.append(w)
         print('Starting Monitor Thread')
         threading.Thread(target=monitor, args=('monitor', lambda: stop_monitor)).start()
-        language = 'en'
+        language = 'es'
         db.connect()
         batches = db.select_batches('podcast_quality', SEARCH_FIELDS, LIMIT, language)
         for batch in batches:
