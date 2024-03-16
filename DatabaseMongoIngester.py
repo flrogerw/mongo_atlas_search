@@ -1,5 +1,6 @@
 import os
 import ast
+import pickle
 import threading
 import queue
 from datetime import datetime
@@ -63,7 +64,7 @@ if __name__ == '__main__':
             total = 0
             for batch in batches:
                 for record in batch:
-                    record['vector'] = Binary(record['vector'])
+                    record['vector'] = pickle.loads(record['vector']).tolist()
                 send_to_mongo(db, batch, collection)
                 total += len(batch)
                 print("\r" + f"{str(total)} processed", end=' ')
