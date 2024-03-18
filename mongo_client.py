@@ -27,7 +27,7 @@ def get_vector(text):
     except Exception:
         raise
 
-text='tell me about good music'
+text='wfan'
 query_text = get_vector(text)
 # print(get_vector('right wing politics'))
 try:
@@ -42,7 +42,7 @@ try:
             }
         }, {
             '$project': {
-                'score': {'$meta': 'searchScore'}, '_id': 0, 'title': 1, 'description': 1}
+                'score': {'$meta': 'searchScore'}, '_id': 0, 'podcast_id': 1, 'title': 1, 'description': 1}
         }, {
             '$set': {'source': 'podcast'}
         }, {

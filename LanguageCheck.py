@@ -38,6 +38,16 @@ Language.factory("language_detector", func=get_lang_detector)
 nlp.add_pipe('language_detector', last=True)
 
 
+def update_record(table_name, col, new_val, field, identifier):
+    try:
+        db_writer.connect()
+        db_writer.update_one(table_name, col, new_val, field, identifier)
+    except Exception:
+        raise
+    finally:
+        db_writer.close_connection()
+
+
 def move_record_to_purgatory(table_name_from, table_name_to, columns, field, val, reason_for_failure):
     try:
         db_writer.connect()
@@ -46,7 +56,6 @@ def move_record_to_purgatory(table_name_from, table_name_to, columns, field, val
         rec['reason_for_failure'] = reason_for_failure
         db_writer.insert_one(table_name_to, rec)
         db_writer.delete(table_name_from, field, val)
-        print('DONE')
 
     except Exception:
         raise
@@ -59,7 +68,7 @@ if __name__ == '__main__':
         print('Language Verify Process Started')
         total = 0
         db_reader.connect()
-        batches = db_reader.select_mongo_batches(f"podcast_quality", "podcast_quality_id, description_cleaned", 500,
+        batches = db_reader.select_mongo_batches(f"podcast_quality", "podcast_quality_id, description_cleaned, language", 500,
                                                  'podcast', True, ['en'])
         for batch in batches:
             for record in batch:
@@ -67,7 +76,15 @@ if __name__ == '__main__':
                 print("\r" + f"{str(total)} processed", end=' ')
                 get_lang = ProcessText.get_language_from_model(record['description_cleaned'], nlp)
                 lang, certainty = get_lang
+                if lang == 'es' and record['language'] == 'en':
+                    print('BAD ONE')
+                    update_record('podcast_quality',
+                                  'language',
+                                  'es',
+                                  'podcast_quality_id',
+                                  record['podcast_quality_id'])
                 if lang not in LANGUAGES:
+                    print(lang, certainty, record['description_cleaned'])
                     get_columns = ['podcast_quality_id as podcast_purgatory_id', 'description_selected', 'readability',
                                    'is_explicit', 'index_status', 'episode_count', 'is_deleted', 'advanced_popularity',
                                    'listen_score_global', 'title_cleaned', f"'{lang}' as language",

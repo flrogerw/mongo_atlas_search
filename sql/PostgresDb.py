@@ -91,6 +91,16 @@ class PostgresDb:
         finally:
             self.connection.commit()
 
+    def update_one(self, table_name, col, new_val, field, identifier):
+        try:
+            query = f"UPDATE {table_name} SET {col} = '{new_val}'  WHERE {field} = {identifier};"
+            self.cursor.execute(query)
+        except Exception:
+            print(traceback.format_exc())
+            pass
+        finally:
+            self.connection.commit()
+
     def select_one(self, table_name, columns, field, val):
         try:
             cols = ','.join(columns)
