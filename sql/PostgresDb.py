@@ -91,6 +91,39 @@ class PostgresDb:
         finally:
             self.connection.commit()
 
+    def select_one(self, table_name, columns, field, val):
+        try:
+            cols = ','.join(columns)
+            query = f"SELECT {cols} FROM {table_name} WHERE {field} = {val};"
+            self.cursor.execute(query)
+            return dict(self.cursor.fetchone())
+        except Exception:
+            print(traceback.format_exc())
+            pass
+        finally:
+            self.connection.commit()
+
+    def upsert_one(self, table_name, record, conflict):
+        try:
+            columns = ','.join(record.keys())
+            #query = f"INSERT INTO {table_name} ({columns}) VALUES {tuple(record.values())} ON CONFLICT({conflict}) DO UPDATE;"
+            #self.cursor.execute(query)
+        except Exception:
+            print(traceback.format_exc())
+            pass
+        finally:
+            self.connection.commit()
+
+    def insert_one(self, table_name, record):
+        try:
+            columns = ','.join(record.keys())
+            query = f"INSERT INTO {table_name} ({columns}) VALUES {tuple(record.values())};"
+            self.cursor.execute(query)
+        except Exception:
+            print(traceback.format_exc())
+            pass
+        finally:
+            self.connection.commit()
 
     def select_all(self, table_name, columns, limit=10000):
         try:
@@ -101,6 +134,8 @@ class PostgresDb:
         except Exception:
             print(traceback.format_exc())
             pass
+        finally:
+            self.connection.commit()
 
     def select_mongo_batches(self, table_name, columns, chunk_size, entity, has_ingest_table=False, languages=['en']):
         try:
@@ -116,7 +151,6 @@ class PostgresDb:
                     cur.itersize = chunk_size
                     cur.arraysize = chunk_size
                     cur.execute(query)
-
                     while True:
                         batch = [dict(row) for row in cur.fetchmany()]
                         if not batch:

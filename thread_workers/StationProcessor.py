@@ -84,7 +84,8 @@ class StationProcessor(threading.Thread):
         for key in GET_TOKENS:
             lemma_key = f"{key.split('_')[0]}_lemma"
             msg[lemma_key] = ProcessText.return_lemma(msg[key], msg['language'])
-        msg['vector'] = pickle.dumps(ProcessText.get_vector(msg[FIELD_TO_VECTOR], self.model))
+        # msg['vector'] = pickle.dumps(ProcessText.get_vector(msg[FIELD_TO_VECTOR], self.model))
+        msg['vector'] = ProcessText.get_vector(msg[FIELD_TO_VECTOR], self.model).tolist()
 
     def process(self, job):
         job = dict((k, v if v != '(null)' else '') for k, v in job.items())
