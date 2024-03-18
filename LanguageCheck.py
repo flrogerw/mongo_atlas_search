@@ -45,6 +45,9 @@ def move_record_to_purgatory(table_name_from, table_name_to, columns, field, val
         rec['index_status'] = 320
         rec['reason_for_failure'] = reason_for_failure
         db_writer.insert_one(table_name_to, rec)
+        db_writer.delete(table_name_from, field, val)
+        print('DONE')
+
     except Exception:
         raise
     finally:

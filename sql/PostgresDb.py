@@ -103,11 +103,21 @@ class PostgresDb:
         finally:
             self.connection.commit()
 
+    def delete(self, table_name, field, val):
+        try:
+            query = f"DELETE FROM {table_name} WHERE {field} = {val};"
+            self.cursor.execute(query)
+        except Exception:
+            print(traceback.format_exc())
+            pass
+        finally:
+            self.connection.commit()
+
     def upsert_one(self, table_name, record, conflict):
         try:
             columns = ','.join(record.keys())
-            #query = f"INSERT INTO {table_name} ({columns}) VALUES {tuple(record.values())} ON CONFLICT({conflict}) DO UPDATE;"
-            #self.cursor.execute(query)
+            # query = f"INSERT INTO {table_name} ({columns}) VALUES {tuple(record.values())} ON CONFLICT({conflict}) DO UPDATE;"
+            # self.cursor.execute(query)
         except Exception:
             print(traceback.format_exc())
             pass
