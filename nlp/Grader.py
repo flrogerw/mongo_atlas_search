@@ -1,26 +1,25 @@
 import math
 from textstat.textstat import textstatistics
+from nlp.StanzaNLP import StanzaNLP
 
 
 class Grader:
-    def __init__(self, text, nlp):
-        self.text = text
+    def __init__(self, nlp):
         self.nlp = nlp
-        self.sentences = self.break_sentences()
-        self.sentence_count = len(self.sentences)
+        self.sentences = nlp.sentences
+        self.sentence_count = len(nlp.sentences)
         self.words = self.get_words()
         self.word_count = len(self.words)
         self.avg_sentence_length = float(self.word_count / self.sentence_count)
 
-    def break_sentences(self):
-        doc = self.nlp(self.text)
-        return list(doc.sents)
-
     def get_words(self):
-        words = []
-        for sentence in self.sentences:
-            words += [str(token) for token in sentence]
-        return words
+        try:
+            words = []
+            for sentence in self.sentences:
+                words += [word.text for word in sentence.words if word.upos not in ['PUNCT', 'PART', 'SYM']]
+            return words
+        except Exception:
+            raise
 
     @staticmethod
     def syllables_count(word):
@@ -38,11 +37,11 @@ class Grader:
         # easy_word_set is provide by Textstat as
         # a list of common words
         diff_words_set = set()
-
-        for word in self.words:
-            syllable_count = self.syllables_count(word)
-            if word not in self.nlp.Defaults.stop_words and syllable_count >= 2:
-                diff_words_set.add(word)
+        no_stopwords = StanzaNLP.remove_stopwords(self.sentences)
+        for word in no_stopwords:
+            syllable_count = self.syllables_count(word.text)
+            if syllable_count >= 2:
+                diff_words_set.add(word.text)
         return len(diff_words_set)
 
     def poly_syllable_count(self):
@@ -127,6 +126,7 @@ class Grader:
             8.0–8.9	11th- or 12th-grade student
             9.0–9.9	college student
         """
+
         count = self.word_count - self.difficult_words()
         if self.word_count > 0:
             per = float(count) / float(self.word_count) * 100

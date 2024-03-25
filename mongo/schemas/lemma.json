@@ -1,0 +1,13 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "title_lemma": {
+        "type": "string"
+      },
+      "description_lemma": {
+        "type": "string"
+      }
+    }
+  }
+}

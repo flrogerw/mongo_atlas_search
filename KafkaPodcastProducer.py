@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from fetchers.ListenNotesFetcher import ListenNotesFetcher
 from thread_workers.PodcastProducer import PodcastProducer
-from nlp.ProcessText import ProcessText
+from nlp.StanzaNLP import StanzaNLP
 
 # Load System ENV VARS
 load_dotenv()
@@ -37,7 +37,7 @@ SERVER_CLUSTER_SIZE = int(sys.argv[1])
 CLUSTER_SERVER_ID = int(sys.argv[2])
 
 thread_lock = threading.Lock()
-text_processor = ProcessText
+text_processor = StanzaNLP()
 good_record_count = 0
 total_record_count = 0
 entity_struct_id = 2

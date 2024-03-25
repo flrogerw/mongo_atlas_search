@@ -4,9 +4,7 @@ import queue
 import time
 import ast
 import uuid
-from itertools import zip_longest
-
-import spacy
+# import spacy
 import traceback
 import sys
 from configparser import ConfigParser
@@ -15,14 +13,16 @@ from dotenv import load_dotenv
 from thread_workers.PodcastConsumer import PodcastConsumer
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
-from spacy_langdetect import LanguageDetector
-from spacy.language import Language
+# from spacy_langdetect import LanguageDetector
+# from spacy.language import Language
+from nlp.StanzaNLP import StanzaNLP
 from sentence_transformers import SentenceTransformer
 
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 KAFKA_EPISODE_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
+KAFKA_UPLOAD_TOPIC = os.getenv('KAFKA_UPLOAD_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
@@ -31,6 +31,7 @@ DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
 DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
+LANGUAGES = os.getenv('LANGUAGES').split(",")
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
 CLUSTER_SERVER_ID = int(sys.argv[2])
 NUMBER_OF_PARTITIONS = int(sys.argv[3])
@@ -40,22 +41,20 @@ jobs_q = queue.Queue(JOB_QUEUE_SIZE)
 quality_q = queue.Queue()
 errors_q = queue.Queue()
 episodes_q = queue.Queue()
+upload_q = queue.Queue()
 
 thread_lock = threading.Lock()
 
-
-def get_lang_detector(nlp, name):
-    return LanguageDetector()
+# def get_lang_detector(nlp, name):
+#    return LanguageDetector()
 
 
 # Load Language Model and Sentence Transformer
-nlp = spacy.load(LANGUAGE_MODEL)
-Language.factory("language_detector", func=get_lang_detector)
-nlp.add_pipe('language_detector', last=True)
+nlp = StanzaNLP(LANGUAGES)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 
-def get_Producer():
+def get_producer():
     try:
         config_parser = ConfigParser()
         config_parser.read('config/kafka.ini')
@@ -74,10 +73,18 @@ def get_partitions(topic):
         partition_clusters = [[] for _ in range(0, SERVER_CLUSTER_SIZE)]
         for partition in range(0, NUMBER_OF_PARTITIONS):
             partition_clusters[partition_cluster_index].append(partition)
-            partition_cluster_index = 0 if partition_cluster_index == (SERVER_CLUSTER_SIZE - 1) else partition_cluster_index + 1
+            partition_cluster_index = 0 if partition_cluster_index == (
+                    SERVER_CLUSTER_SIZE - 1) else partition_cluster_index + 1
         return [TopicPartition(topic, partition_id) for partition_id in partition_clusters[CLUSTER_SERVER_ID]]
     except Exception:
         raise
+
+
+def drop_on_kafka(self, message, topic):
+    kafka_message = str(message).encode()
+    self.producer.produce(topic=topic, key=str(uuid.uuid4()), value=kafka_message,
+                          on_delivery=self.delivery_report)
+    self.producer.flush()
 
 
 def get_consumer(topic=KAFKA_TOPIC):
@@ -97,7 +104,7 @@ def get_consumer(topic=KAFKA_TOPIC):
 
 def put_episodes(msgs):
     try:
-        producer = get_Producer()
+        producer = get_producer()
         producer.begin_transaction()
         producer.poll(0)
         for msg in msgs:
@@ -119,6 +126,7 @@ def put_episodes(msgs):
         raise
     finally:
         producer.commit_transaction()
+        del producer
 
 
 def delivery_report(errmsg, msg):
@@ -130,11 +138,23 @@ def flush_queues(logger):
     try:
         logger.connect()
         with thread_lock:
+            upload_list = list(upload_q.queue)
+            upload_q.queue.clear()
             quality_list = list(quality_q.queue)
             quality_q.queue.clear()
             errors_list = list(errors_q.queue)
             errors_q.queue.clear()
 
+        if upload_list:
+            producer = get_producer()
+            producer.begin_transaction()
+            producer.poll(0)
+            for message in upload_list:
+                kafka_message = str(message).encode()
+                producer.produce(topic=KAFKA_UPLOAD_TOPIC, key=str(uuid.uuid4()), value=kafka_message,
+                                 on_delivery=delivery_report)
+            producer.commit_transaction()
+            del producer
         if quality_list:
             quality_inserts = logger.append_ingest_ids('podcast', 'quality', quality_list)
             put_episodes(quality_inserts)
@@ -169,12 +189,12 @@ def monitor(id, stop):
                 break
             elapsed_time = datetime.now() - start_time
             print(f'Completed: {total_completed}  Elapsed Time: {elapsed_time} Jobs Queue Size: {jobs_q.qsize()}')
-    except Exception as e:
+    except Exception as err:
         # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
                           "entity_type": 2,
-                          "error": str(e),
+                          "error": str(err),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
 
@@ -188,6 +208,7 @@ if __name__ == '__main__':
             w = PodcastConsumer(jobs_q,
                                 quality_q,
                                 errors_q,
+                                upload_q,
                                 thread_lock,
                                 nlp,
                                 model)
@@ -230,7 +251,7 @@ if __name__ == '__main__':
         print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 2,
-                          "error": err,
+                          "entity_type": 510,
+                          "error": str(err),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

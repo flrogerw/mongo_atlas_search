@@ -1,0 +1,12 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "vector": {
+        "type": "knnVector",
+        "dimensions": 384,
+        "similarity": "euclidean"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+[
+        {"$vectorSearch": {"index": "knn", "path": "vector", "queryVector": query_text, "numCandidates": 10,
+                           "limit": 10}},
+        {"$project": {"score": 1, "_id": 0, "podcast_id": 1, "title": 1, "description": 1, "advanced_popularity": 1,
+                      "listen_score": 1}},
+        {"$addFields": {"score": {"$meta": "vectorSearchScore"}}},
+        {"$addFields": {"normalizedScore": {"$add": ["$score", "$listen_score"]}}},
+        {"$set": {"source": "podcast"}},
+        {"$limit": 10},
+        {
+            "$unionWith": {
+                "coll": "station_en",
+                "pipeline": [
+                    {"$search": {"index": "lemma",
+                                 "text": {"query": text, "path": ["title_lemma", "description_lemma"]}}},
+                    {"$project": {"_id": 0, "station_id": 1, "title": 1, "description": 1, "score": 1, "maxScore": 1,
+                                  "normalizedScore": 1}},
+                    {"$addFields": {"score": {"$meta": "searchScore"}}},
+                    {"$setWindowFields": {"output": {"maxScore": {"$max": "$score"}}}},
+                    {"$addFields": {"normalizedScore": {"$divide": ["$score", "$maxScore"]}}},
+                    {"$set": {"source": "station"}},
+                    {"$limit": 10}
+                ]
+            }
+        },
+        {
+            "$sort": {
+                "normalizedScore": -1
+            }
+        }
+    ]

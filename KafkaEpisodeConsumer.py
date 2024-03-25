@@ -16,12 +16,14 @@ from datetime import datetime
 from spacy_langdetect import LanguageDetector
 from spacy.language import Language
 from sentence_transformers import SentenceTransformer
+from nlp.StanzaNLP import StanzaNLP
 
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
+LANGUAGES = os.getenv('LANGUAGES').split(",")
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
@@ -43,7 +45,7 @@ purgatory_q = queue.Queue()
 quarantine_q = queue.Queue()
 
 thread_lock = threading.Lock()
-entity_struct_id = 1
+entity_struct_id = 520
 
 if FLUSH_REDIS_ON_START:
     redis_cli = redis.Redis(host=REDIS_HOST,
@@ -58,9 +60,7 @@ def get_lang_detector(nlp, name):
 
 
 # Load Language Model and Sentence Transformer
-nlp = spacy.load(LANGUAGE_MODEL)
-Language.factory("language_detector", func=get_lang_detector)
-nlp.add_pipe('language_detector', last=True)
+nlp = StanzaNLP(LANGUAGES)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
 
 
@@ -145,7 +145,7 @@ def monitor(id, stop):
         print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 1,
+                          "entity_type": 520,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
@@ -203,7 +203,7 @@ if __name__ == '__main__':
         # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 1,
-                          "error": err,
+                          "entity_type": 520,
+                          "error": str(err),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

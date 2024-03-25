@@ -7,7 +7,7 @@ import traceback
 import requests
 import hashlib
 import redis
-from nlp.ProcessText import ProcessText
+from nlp.Grader import Grader
 from dotenv import load_dotenv
 from logger.Logger import ErrorLogger
 from schemas.validation import Episode
@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 load_dotenv()
 READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
 GET_TOKENS = os.getenv('GET_TOKENS').split(",")
-FIELD_TO_VECTOR = os.getenv('PODCAST_VECTOR')
+FIELDS_TO_VECTOR = os.getenv('EPISODE_FIELDS_TO_VECTOR').split(",")
 MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
 MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
 REDIS_HOST = os.getenv('REDIS_HOST')
@@ -79,11 +79,21 @@ class EpisodeConsumer(threading.Thread):
         except Exception:
             raise
 
-    def get_search_fields(self, kafka_message):
-        for key in GET_TOKENS:
-            lemma_key = f"{key.split('_')[0]}_lemma"
-            kafka_message[lemma_key] = ProcessText.return_lemma(kafka_message[key], kafka_message['language'])
-        kafka_message['vector'] = pickle.dumps(ProcessText.get_vector(kafka_message[FIELD_TO_VECTOR], self.model))
+    def get_field_lemmas(self, message):
+        try:
+            for key in GET_TOKENS:
+                lemma_key = f"{key.split('_')[0]}_lemma"
+                message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
+        except Exception:
+            raise
+
+    def get_field_vectors(self, kafka_message):
+        try:
+            for key in FIELDS_TO_VECTOR:
+                vector_key = f"{key.split('_')[0]}_vector"
+                kafka_message[vector_key] = pickle.dumps(self.nlp.get_vector(kafka_message[key], self.model))
+        except Exception:
+            raise
 
     def to_bool(self, string_bool, default):
         if string_bool is True or string_bool.lower() in TRUE_BOOL:
@@ -107,7 +117,7 @@ class EpisodeConsumer(threading.Thread):
             else:
                 episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('url')))
 
-            return {
+            message = {
                 "episode_uuid": episode_uuid,
                 "episode_url": item.enclosure.get('url'),
                 "podcast_id": kafka_message['podcast_id'],
@@ -119,18 +129,35 @@ class EpisodeConsumer(threading.Thread):
                     'is_explicit'],
                 "publisher": item.author.get_text() if item.author else kafka_message['publisher'],
                 "image_url": kafka_message['image_url'],
-                "description_cleaned": ProcessText.return_clean_text(
+                "description_cleaned": self.nlp.clean_text(
                     item.description.get_text()) if item.description else '',
-                "title_cleaned": ProcessText.return_clean_text(
+                "title_cleaned": self.nlp.clean_text(
                     item.title.get_text()) if item.title else '',
                 "readability": 0,
                 "description_selected": 410,
-                "advanced_popularity": 1,
+                "advanced_popularity": 0,
                 "index_status": 310,
-                'record_hash': hashlib.md5(str(item).encode()).hexdigest(),
                 "publish_date": int(
                     parser.parse(item.pubDate.get_text()).timestamp()) if item.pubDate else None
             }
+            message['record_hash'] = hashlib.md5(str(message).encode()).hexdigest()
+            return message
+        except Exception:
+            raise
+
+    def get_readability(self, text_str, language='en', grader_type='dale_chall'):
+        try:
+            grader = Grader(self.nlp.text_processors[language](text_str))
+            if grader_type == 'dale_chall':
+                return grader.dale_chall_readability_score()
+            elif grader_type == 'flesch_kincaid':
+                return grader.flesch_kincaid_readability_test()
+            elif grader_type == 'gunning_fog':
+                return grader.gunning_fog()
+            elif grader_type == 'smog_index':
+                return grader.smog_index()
+            else:
+                return 0
         except Exception:
             raise
 
@@ -140,27 +167,28 @@ class EpisodeConsumer(threading.Thread):
             root = BeautifulSoup(rss, features="xml")  # More forgiving that lxml
             for item in root.findAll("item"):
                 episode_message = self.get_message(item, kafka_message)
-                Episode(**episode_message)
+
                 # self.validate_minimums(episode_message)
 
                 # Check for Previous Instance in Redis
-                previous_episode_uuid = self.redis_cli.get(f"{self.entity_type}_{episode_message['record_hash']}")
+                previous_episode_hash = self.redis_cli.get(f"{self.entity_type}_{episode_message['episode_uuid']}")
                 # Check for Exact Duplicates using hash of entire record string and podcast_uuid.
-                if previous_episode_uuid == episode_message['episode_uuid']:
+                if previous_episode_hash == episode_message['episode_uuid']:
                     raise TypeError(
-                        f"File {episode_message['episode_url']} is a duplicate to: {previous_episode_uuid}.")
+                        f"File {episode_message['episode_url']} is a duplicate to: {previous_episode_hash}.")
                 # Same Body Different podcast_uuid. title says "DELETED"??
-                elif previous_episode_uuid:
+                elif previous_episode_hash:
                     raise QuarantineError({"episode_uuid": episode_message['episode_uuid'],
-                                           "original_episode_uuid": previous_episode_uuid})
+                                           "duplicate_file_name": episode_message['episode_url'],
+                                           "original_episode_hash": previous_episode_hash})
                 # Set entry in Redis
                 else:
-                    self.redis_cli.set(f"{self.entity_type}_{episode_message['record_hash']}",
-                                       episode_message['episode_uuid'])
-                    self.get_search_fields(episode_message)
+                    self.redis_cli.set(f"{self.entity_type}_{episode_message['episode_uuid']}",
+                                       episode_message['record_hash'])
+                    self.get_field_vectors(episode_message)
+                    self.get_field_lemmas(episode_message)
                     if episode_message['language'] == 'en' and len(episode_message[READABILITY_FIELD]) > 5:
-                        episode_message['readability'] = ProcessText.get_readability(episode_message[READABILITY_FIELD],
-                                                                                     self.nlp)
+                        episode_message['readability'] = self.get_readability(episode_message[READABILITY_FIELD])
                     with self.thread_lock:
                         self.quality_q.put(episode_message)
 
@@ -168,8 +196,8 @@ class EpisodeConsumer(threading.Thread):
             # print(traceback.format_exc())
             self.logger.log_to_purgatory(episode_message, str(err))
         except QuarantineError as quarantine_obj:
-            self.logger.log_to_quarantine(quarantine_obj)
+            self.logger.log_to_quarantine(quarantine_obj.args[0])
         except ValueError as err:
             self.logger.log_to_purgatory(episode_message, str(err))
         except Exception as err:
-            self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc(), 1)
+            self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc(), 520)

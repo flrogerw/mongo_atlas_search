@@ -163,7 +163,6 @@ class PostgresDb:
             if has_ingest_table:
                 join_statement = f"JOIN {entity}_ingest as pi ON pi.{entity}_ingest_id = {table_name}.{table_name}_id"
             query = f"SELECT {columns} FROM {table_name} {join_statement}  WHERE {table_name}.language IN ({str(languages)[1:-1]});"
-
             def _batches():
                 with \
                         self.connection.cursor(name='process-cursor',

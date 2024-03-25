@@ -20,7 +20,7 @@ class Podcast(BaseModel):
     title_cleaned: str
     readability: int
     description_selected: PositiveInt
-    advanced_popularity: PositiveFloat
+    advanced_popularity: int
     record_hash: str
     episode_count: int
     listen_score_global: Union[str, float]

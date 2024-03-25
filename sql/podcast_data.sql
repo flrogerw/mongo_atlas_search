@@ -5,7 +5,7 @@ SET client_min_messages TO WARNING;
 -- DROP SCHEMA IF EXISTS podcast CASCADE;
 -- CREATE SCHEMA podcast;
 
-SET search_path TO podcast_kafka;
+SET search_path TO podcast;
 
 
 INSERT INTO struct_type (struct_type_id, date_created, date_modified, display_order, group_name, att_pub_ident, att_value)
@@ -21,4 +21,7 @@ VALUES
 	, (410, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 10, 'guid_select',	'0',	'Native')
 	, (420, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 20, 'guid_select',	'1',	'String')
 	, (430, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 30, 'guid_select',	'2',	'URL')
+	, (510, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 30, 'entity_type',	'1',	'Podcast')
+	, (520, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 30, 'entity_type',	'2',	'Episode')
+	, (530, '2024-01-01 01:23:45', '2024-01-01 01:23:45', 30, 'entity_type',	'3',	'Show')
 ;

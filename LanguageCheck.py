@@ -8,7 +8,7 @@ from spacy_langdetect import LanguageDetector
 from spacy.language import Language
 from sql.PostgresDb import PostgresDb
 from logger.Logger import ErrorLogger
-from nlp.ProcessText import ProcessText
+from nlp.StanzaNLP import StanzaNLP
 
 # Load System ENV VARS
 load_dotenv()
@@ -67,15 +67,25 @@ if __name__ == '__main__':
     try:
         print('Language Verify Process Started')
         total = 0
+        nlp = StanzaNLP()
         db_reader.connect()
-        batches = db_reader.select_mongo_batches(f"podcast_quality", "podcast_quality_id, description_cleaned, language", 500,
+        batches = db_reader.select_mongo_batches(f"podcast_purgatory", "podcast_purgatory_id, description_cleaned, language", 500,
                                                  'podcast', True, ['en'])
         for batch in batches:
             for record in batch:
                 total += 1
                 print("\r" + f"{str(total)} processed", end=' ')
-                get_lang = ProcessText.get_language_from_model(record['description_cleaned'], nlp)
-                lang, certainty = get_lang
+
+                docs = nlp.get_language(record['description_cleaned'])
+                for doc in docs:
+                    print("\n")
+                    print(f"text: {doc.text}")
+                    print(f"lang: {doc.lang}")
+                    #print(f"{doc.sentences[0].dependencies_string()}")
+
+                # get_lang = ProcessText.get_language_from_model(record['description_cleaned'], nlp)
+                #lang, certainty = get_lang
+                """
                 if lang == 'es' and record['language'] == 'en':
                     print('BAD ONE')
                     update_record('podcast_quality',
@@ -95,7 +105,8 @@ if __name__ == '__main__':
                                              'podcast_quality_id',
                                              record['podcast_quality_id'],
                                              f"Language was marked as {','.join(LANGUAGES)} but may be {lang} with {certainty} certainty.")
-                # print(lang, certainty, record['description_cleaned'])
+                """
+                #print(lang, certainty, record['description_cleaned'])
         db_reader.close_connection()
 
     except Exception as err:
