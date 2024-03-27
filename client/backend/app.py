@@ -2,22 +2,21 @@ import sys
 import json
 from flask import Flask, request
 from SearchClient import SearchClient
-#sys.path.append("..")
+
+# sys.path.append("..")
 
 app = Flask(__name__)
-#load_dotenv()
+client = SearchClient()
 
 
 @app.route('/update_aps', methods=["POST"])
 def update_aps():
-    client = SearchClient()
-    # response = client.search(body=query, index=index_name, params=params)
-    # return json.dumps(response["hits"]["hits"])
+    response = ''
+    return json.dumps(response)
 
 
 @app.route('/search_as_you_type', methods=["GET"])
 def search_as_you_type():
-    client = SearchClient()
     search_phrase = request.args.get('search_phrase')
     index = request.args.get('index')
     response = client.search_as_you_type(search_phrase, index, 10)
@@ -26,12 +25,12 @@ def search_as_you_type():
 
 @app.route('/search', methods=["GET"])
 def search():
-    client = SearchClient()
-    search_phrase = request.args.get('search_phrase')
-    index = "%s_%s" % (request.args.get('entity'), request.args.get('language'))
-    size = request.args.get('size')
-    response = client.search(search_phrase, index, size)
-    return json.dumps(response["hits"]["hits"])
+    response = client.search(
+        request.args.get('search_phrase'),
+        request.args.get('lang'),
+        request.args.get('ent_type'),
+        request.args.get('max_results'))
+    return json.dumps(response)
 
 
 if __name__ == '__main__':

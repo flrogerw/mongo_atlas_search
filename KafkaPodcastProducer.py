@@ -19,10 +19,9 @@ from nlp.StanzaNLP import StanzaNLP
 # Load System ENV VARS
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
-KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
-KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
-KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
-JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
+#KAFKA_SCHEMA_REGISTRY_URL = os.getenv('KAFKA_SCHEMA_REGISTRY_URL')
+#KAFKA_SCHEMA_REGISTRY_KEY = os.getenv('KAFKA_SCHEMA_REGISTRY_KEY')
+#KAFKA_SCHEMA_REGISTRY_SECRET = os.getenv('KAFKA_SCHEMA_REGISTRY_SECRET')
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_DATABASE = os.getenv('DB_DATABASE')
@@ -40,7 +39,7 @@ thread_lock = threading.Lock()
 text_processor = StanzaNLP()
 good_record_count = 0
 total_record_count = 0
-entity_struct_id = 2
+entity_struct_id = 510
 
 # Set up Queues
 jobs_q = queue.Queue(JOB_QUEUE_SIZE)

@@ -4,7 +4,6 @@ import queue
 import time
 import ast
 import uuid
-# import spacy
 import traceback
 import sys
 from configparser import ConfigParser
@@ -13,8 +12,6 @@ from dotenv import load_dotenv
 from thread_workers.PodcastConsumer import PodcastConsumer
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
-# from spacy_langdetect import LanguageDetector
-# from spacy.language import Language
 from nlp.StanzaNLP import StanzaNLP
 from sentence_transformers import SentenceTransformer
 
@@ -24,7 +21,6 @@ KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 KAFKA_EPISODE_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 KAFKA_UPLOAD_TOPIC = os.getenv('KAFKA_UPLOAD_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
-LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
@@ -44,11 +40,6 @@ episodes_q = queue.Queue()
 upload_q = queue.Queue()
 
 thread_lock = threading.Lock()
-
-# def get_lang_detector(nlp, name):
-#    return LanguageDetector()
-
-
 # Load Language Model and Sentence Transformer
 nlp = StanzaNLP(LANGUAGES)
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
@@ -126,7 +117,6 @@ def put_episodes(msgs):
         raise
     finally:
         producer.commit_transaction()
-        del producer
 
 
 def delivery_report(errmsg, msg):

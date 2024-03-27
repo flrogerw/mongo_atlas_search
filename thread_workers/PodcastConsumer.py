@@ -18,7 +18,8 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 load_dotenv()
 # Load System ENV VARS
 READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
-GET_TOKENS = os.getenv('GET_TOKENS').split(",")
+GRADABLE_LANGUAGES = os.getenv('GRADABLE_LANGUAGES').split(",")
+FIELDS_TO_LEMMA = os.getenv('FIELDS_TO_LEMMA').split(",")
 FIELDS_TO_VECTOR = os.getenv('PODCAST_FIELDS_TO_VECTOR').split(",")
 REDIS_HOST = os.getenv('REDIS_HOST')
 UPLOAD_BUCKET = os.getenv('UPLOAD_BUCKET')
@@ -49,7 +50,7 @@ class PodcastConsumer(threading.Thread):
 
     def get_field_lemmas(self, message):
         try:
-            for key in GET_TOKENS:
+            for key in FIELDS_TO_LEMMA:
                 lemma_key = f"{key.split('_')[0]}_lemma"
                 message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
         except Exception:
@@ -82,7 +83,6 @@ class PodcastConsumer(threading.Thread):
             }
             with self.thread_lock:
                 self.upload_q.put(rss_message)
-
             file_path = f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{self.get_path(message['podcast_uuid'])}/{message['record_hash']}.rss"
         else:
             file_path = f"URL returned a {rss_head.status_code} status code"
@@ -111,7 +111,6 @@ class PodcastConsumer(threading.Thread):
                     }
                     with self.thread_lock:
                         self.upload_q.put(image_message)
-
                 else:
                     image_path = previous_image
             else:
@@ -123,22 +122,6 @@ class PodcastConsumer(threading.Thread):
         finally:
             return f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{image_path}"
 
-    def get_readability(self, text_str, language='en', grader_type='dale_chall'):
-        try:
-            grader = Grader(self.nlp.text_processors[language](text_str))
-            if grader_type == 'dale_chall':
-                return grader.dale_chall_readability_score()
-            elif grader_type == 'flesch_kincaid':
-                return grader.flesch_kincaid_readability_test()
-            elif grader_type == 'gunning_fog':
-                return grader.gunning_fog()
-            elif grader_type == 'smog_index':
-                return grader.smog_index()
-            else:
-                return 0
-        except Exception:
-            raise
-
     def process(self, message):
         try:
             message['image_url'] = self.get_image_path(message['image_url'], message['podcast_uuid'])
@@ -149,8 +132,8 @@ class PodcastConsumer(threading.Thread):
             # ADD validation schema HERE
 
             # Extra Processing goes Here
-            if message['language'] == 'en':
-                message['readability'] = self.get_readability(message[READABILITY_FIELD])
+            if message['language'] in GRADABLE_LANGUAGES:
+                message['readability'] = Grader.get_readability(message[READABILITY_FIELD])
 
             with self.thread_lock:
                 self.quality_q.put(message)

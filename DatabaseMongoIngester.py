@@ -64,7 +64,7 @@ if __name__ == '__main__':
             total = 0
             for batch in batches:
                 for record in batch:
-                    record['vector'] = pickle.loads(record['vector']).tolist()
+                    record['description_vector'] = pickle.loads(record['description_vector']).tolist()
                 send_to_mongo(db, batch, collection)
                 total += len(batch)
                 print("\r" + f"{str(total)} processed", end=' ')

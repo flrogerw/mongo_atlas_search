@@ -18,7 +18,8 @@ from bs4 import BeautifulSoup
 # Load System ENV VARS
 load_dotenv()
 READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
-GET_TOKENS = os.getenv('GET_TOKENS').split(",")
+GRADABLE_LANGUAGES = os.getenv('GRADABLE_LANGUAGES').split(",")
+FIELDS_TO_LEMMA = os.getenv('FIELDS_TO_LEMMA').split(",")
 FIELDS_TO_VECTOR = os.getenv('EPISODE_FIELDS_TO_VECTOR').split(",")
 MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
 MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
@@ -81,7 +82,7 @@ class EpisodeConsumer(threading.Thread):
 
     def get_field_lemmas(self, message):
         try:
-            for key in GET_TOKENS:
+            for key in FIELDS_TO_LEMMA:
                 lemma_key = f"{key.split('_')[0]}_lemma"
                 message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
         except Exception:
@@ -145,22 +146,6 @@ class EpisodeConsumer(threading.Thread):
         except Exception:
             raise
 
-    def get_readability(self, text_str, language='en', grader_type='dale_chall'):
-        try:
-            grader = Grader(self.nlp.text_processors[language](text_str))
-            if grader_type == 'dale_chall':
-                return grader.dale_chall_readability_score()
-            elif grader_type == 'flesch_kincaid':
-                return grader.flesch_kincaid_readability_test()
-            elif grader_type == 'gunning_fog':
-                return grader.gunning_fog()
-            elif grader_type == 'smog_index':
-                return grader.smog_index()
-            else:
-                return 0
-        except Exception:
-            raise
-
     def process(self, kafka_message):
         try:
             rss = self.get_from_web(kafka_message['rss_url'])
@@ -185,10 +170,13 @@ class EpisodeConsumer(threading.Thread):
                 else:
                     self.redis_cli.set(f"{self.entity_type}_{episode_message['episode_uuid']}",
                                        episode_message['record_hash'])
+                    # Extra Processing goes Here
+                    if episode_message['language'] in GRADABLE_LANGUAGES and len(
+                            episode_message[READABILITY_FIELD]) > 5:
+                        episode_message['readability'] = Grader.get_readability(episode_message[READABILITY_FIELD])
                     self.get_field_vectors(episode_message)
                     self.get_field_lemmas(episode_message)
-                    if episode_message['language'] == 'en' and len(episode_message[READABILITY_FIELD]) > 5:
-                        episode_message['readability'] = self.get_readability(episode_message[READABILITY_FIELD])
+
                     with self.thread_lock:
                         self.quality_q.put(episode_message)
 
