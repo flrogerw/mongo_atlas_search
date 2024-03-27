@@ -32,16 +32,16 @@ def get_vector(text):
         raise
 
 
-text = 'good places to eat in the windy city'
+text = 'wfan'
 nlp = StanzaNLP(LANGUAGES)
-query_text = nlp.get_vector(text, model)
+query_text = get_vector(text)
 lemma_text = nlp.get_lemma(text, 'en')
 #query_text = get_vector(text)
 # print(get_vector('right wing politics'))
 try:
     pipeline = [
 
-        {"$vectorSearch": {"index": "knn", "path": "vector", "queryVector": query_text, "numCandidates": 10,
+        {"$vectorSearch": {"index": "knn", "path": "description_vector", "queryVector": query_text, "numCandidates": 10,
                            "limit": 10}},
         {"$project": {"_id": 0, "podcast_id": 1, "title": 1, "description": 1,
                       "advanced_popularity": 1,
