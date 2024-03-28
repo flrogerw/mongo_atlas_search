@@ -32,6 +32,15 @@ class SearchClient:
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
             search_result = self.client[ATLAS_DB][collection].aggregate(pipeline)
-            return list(search_result)
+            results = {}
+            for i in search_result:
+                if i['entity_type'] in results:
+                    results[i['entity_type']].append(i)
+                else:
+                    results[i['entity_type']] = [i]
+            for result in results:
+                sorted_list = sorted(results[result], key=lambda x: x['final_score'], reverse=True)
+                results[result] = sorted_list
+            return results
         except Exception:
             raise
