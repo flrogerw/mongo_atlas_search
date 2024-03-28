@@ -62,7 +62,7 @@ class StanzaNLP(Pipeline):
         try:
             with torch.no_grad():
                 vector = model.encode(text)
-            return vector.tolist()
+            return vector
         except Exception:
             raise
 

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import torch
 from sentence_transformers import SentenceTransformer
-from nlp.StanzaNLP import StanzaNLP
+from client.backend.nlp.StanzaNLP import StanzaNLP
 from collections import defaultdict
 
 load_dotenv()
@@ -20,23 +20,13 @@ client = pymongo.MongoClient(
     f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/?directConnection=true")
 
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
-resp = defaultdict(list)
-
-
-def get_vector(text):
-    try:
-        with torch.no_grad():
-            vector = model.encode(text)
-        return vector.tolist()
-    except Exception:
-        raise
-
 
 text = 'wfan'
 nlp = StanzaNLP(LANGUAGES)
-query_text = get_vector(text)
-lemma_text = nlp.get_lemma(text, 'en')
-#query_text = get_vector(text)
+query_text = nlp.get_vector(text, model)
+query_text = query_text.tolist()
+lemma_text = nlp.get_lemma(text, 'en').lower()
+# query_text = get_vector(text)
 # print(get_vector('right wing politics'))
 try:
     pipeline = [
@@ -46,8 +36,18 @@ try:
         {"$project": {"_id": 0, "podcast_id": 1, "title": 1, "description": 1,
                       "advanced_popularity": 1,
                       "score": {"$meta": "vectorSearchScore"},
+                      "normalizedScore": 1,
                       "listen_score": 1}},
         {"$set": {"source": "podcast"}},
+        {
+            "$addFields": {
+                "normalizedScore": {
+                    "$divide": [
+                        "$score", 100
+                    ]
+                }
+            }
+        },
         {"$limit": 10},
         {
             "$unionWith": {
@@ -102,20 +102,11 @@ try:
     new = [(k, *zip(*v)) for k, v in groups.items()]
     print(new)
 
-
-
     for result in results:
         sorted_list = sorted(results[result], key=lambda x: x['score'], reverse=True)
         results[result] = sorted_list
 
-
-    for entity_type in results:
-        print("\n\n")
-        print(entity_type, flush=True)
-        for entity in results[entity_type]:
-            print(f"{entity['title']} - {entity['score']}", flush=True)
-            print(entity['description'], flush=True)
-
+    print(results)
 
 
 except Exception:
