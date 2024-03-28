@@ -38,7 +38,7 @@
         - $advanced_popularity
         - 200
 - $addFields:
-    final_score:
+    score:
       $add:
         - $normalized_score
         - $listen_score

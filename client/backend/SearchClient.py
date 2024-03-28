@@ -39,7 +39,7 @@ class SearchClient:
                 else:
                     results[i['entity_type']] = [i]
             for result in results:
-                sorted_list = sorted(results[result], key=lambda x: x['final_score'], reverse=True)
+                sorted_list = sorted(results[result], key=lambda x: x['score'], reverse=True)
                 results[result] = sorted_list
             return results
         except Exception:
