@@ -1,0 +1,47 @@
+- $search:
+    index: knn
+    knnBeta:
+        path: description_vector
+        vector: None
+        k: {max_results}
+- $project:
+    _id: 0
+    "{entity_id_field}": 1
+    title: 1
+    image_url: 1
+    description: 1
+    finalScore: 1
+    advanced_popularity: 1
+    atlas_score:
+        $meta: searchScore
+    listen_score: 1
+    normalized_score: 1
+    apsScore: 1
+- $addFields:
+    listen_score:
+      $ifNull:
+        - $listen_score
+        - 0
+    advanced_popularity:
+      $ifNull:
+        - $advanced_popularity
+        - 0
+- $addFields:
+    normalized_score:
+      $divide:
+        - $atlas_score
+        - 100
+- $addFields:
+    aps_score:
+      $divide:
+        - $advanced_popularity
+        - 200
+- $addFields:
+    final_score:
+      $add:
+        - $normalized_score
+        - $listen_score
+        - $aps_score
+- $set:
+    entity_type: {ent_type}
+- $limit: {max_results}
