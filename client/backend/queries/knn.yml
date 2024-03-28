@@ -3,7 +3,7 @@
     knnBeta:
         path: description_vector
         vector: None
-        k: {max_results}
+        k: 5
 - $project:
     _id: 0
     "{entity_id_field}": 1
