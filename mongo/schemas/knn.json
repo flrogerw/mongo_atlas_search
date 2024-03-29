@@ -5,7 +5,7 @@
       "vector": {
         "type": "knnVector",
         "dimensions": 384,
-        "similarity": "euclidean"
+        "similarity": "cosine"
       }
     }
   }

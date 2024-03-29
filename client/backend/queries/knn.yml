@@ -1,9 +1,9 @@
-- $search:
+- $vectorSearch:
     index: knn
-    knnBeta:
-        path: description_vector
-        vector: None
-        k: {max_results}
+    path: description_vector
+    queryVector: None
+    numCandidates: 200
+    limit: {max_results}
 - $project:
     _id: 0
     "{entity_id_field}": 1
@@ -13,9 +13,8 @@
     finalScore: 1
     advanced_popularity: 1
     atlas_score:
-        $meta: searchScore
+        $meta: vectorSearchScore
     listen_score: 1
-    normalized_score: 1
     apsScore: 1
 - $addFields:
     listen_score:
@@ -27,11 +26,6 @@
         - $advanced_popularity
         - 0
 - $addFields:
-    normalized_score:
-      $divide:
-        - $atlas_score
-        - 100
-- $addFields:
     aps_score:
       $divide:
         - $advanced_popularity
@@ -39,7 +33,7 @@
 - $addFields:
     score:
       $add:
-        - $normalized_score
+        - $atlas_score
         - $listen_score
         - $aps_score
 - $set:

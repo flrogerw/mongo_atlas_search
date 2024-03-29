@@ -23,9 +23,9 @@ class SearchQueries:
 
     def get_knn_query(self, max_results, ent_type, collection, vector, primary=True):
         query = self.knn.format(max_results=max_results, entity_id_field=f"{ent_type}_id",
-                                ent_type=ent_type, collection=collection)
+                                ent_type=ent_type)
         query_dict = yaml.safe_load(query)
-        query_dict[0]['$search']['knnBeta']['vector'] = vector.tolist()
+        query_dict[0]['$vectorSearch']['queryVector'] = vector.tolist()
         return [{"$unionWith": {"coll": collection, "pipeline": query_dict}}] if not primary else query_dict
 
     def get_lexical_query(self, max_results, ent_type, collection, lemma_text, primary=True):

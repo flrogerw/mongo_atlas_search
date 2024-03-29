@@ -31,16 +31,24 @@ class SearchClient:
     def search(self, search_phrase, language='en', ent_type='all', max_results=10):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
-            search_result = self.client[ATLAS_DB][collection].aggregate(pipeline)
-            results = {}
-            for i in search_result:
-                if i['entity_type'] in results:
-                    results[i['entity_type']].append(i)
-                else:
-                    results[i['entity_type']] = [i]
-            for result in results:
-                sorted_list = sorted(results[result], key=lambda x: x['score'], reverse=True)
-                results[result] = sorted_list
-            return results
+            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            self.merge_records(search_result)
+            sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+            return sorted_list
+        except Exception:
+            raise
+
+    """
+    Merge scores when both semantic and lexical matches appear in the result set.
+    """
+    def merge_records(self, raw_results):
+        try:
+            double_results = {}
+            for c, i in enumerate(raw_results):
+                double_results.setdefault(i[f"{i['entity_type']}_id"], []).append(c)
+                if len(double_results[i[f"{i['entity_type']}_id"]]) > 1:
+                    x, y = double_results[i[f"{i['entity_type']}_id"]]
+                    raw_results[x]['score'] += raw_results[y]['score']
+                    del raw_results[y]
         except Exception:
             raise
