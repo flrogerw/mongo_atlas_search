@@ -1,12 +1,8 @@
 {
-  "mappings": {
-    "dynamic": false,
-    "fields": {
-      "vector": {
-        "type": "knnVector",
-        "dimensions": 384,
-        "similarity": "cosine"
-      }
-    }
-  }
+  "fields": [{
+    "type": "vector",
+    "path": "description_vector",
+    "numDimensions": 384,
+    "similarity": "cosine"
+  }]
 }

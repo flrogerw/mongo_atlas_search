@@ -31,6 +31,7 @@ class SearchClient:
     def search(self, search_phrase, language='en', ent_type='all', max_results=10):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
+            print(pipeline)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
             self.merge_records(search_result)
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
@@ -45,10 +46,12 @@ class SearchClient:
         try:
             double_results = {}
             for c, i in enumerate(raw_results):
-                double_results.setdefault(i[f"{i['entity_type']}_id"], []).append(c)
-                if len(double_results[i[f"{i['entity_type']}_id"]]) > 1:
-                    x, y = double_results[i[f"{i['entity_type']}_id"]]
+                entity_id = i[f"{i['entity_type']}_id"]
+                double_results.setdefault(entity_id, []).append(c)
+                if len(double_results[entity_id]) > 1:
+                    x, y = double_results[entity_id]
                     raw_results[x]['score'] += raw_results[y]['score']
+                    # advanced_popularity atlas_score listen_score aps_score
                     del raw_results[y]
         except Exception:
             raise

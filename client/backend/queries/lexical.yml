@@ -18,6 +18,11 @@
     listen_score: 1
     normalized_score: 1
     apsScore: 1
+- $setWindowFields:
+    output:
+      maxScore:
+        $max: $atlas_score
+
 - $addFields:
     listen_score:
       $ifNull:
@@ -31,7 +36,7 @@
     normalized_score:
       $divide:
         - $atlas_score
-        - 100
+        - $maxScore
 - $addFields:
     aps_score:
       $divide:
