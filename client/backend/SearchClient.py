@@ -46,17 +46,18 @@ class SearchClient:
     def merge_records(self, results):
         try:
             double_results = {}
+            max_score = max(result['atlas_score'] for result in results)
             for c, i in enumerate(results):
+                normalized_score = i['normalized_score'] if hasattr(i, 'normalized_score') else (i['atlas_score'] / max_score)
+                i['score'] = normalized_score + i['listen_score'] + i['aps_score']
                 entity_id = i[f"{i['entity_type']}_id"]
                 double_results.setdefault(entity_id, []).append(c)
                 if len(double_results[entity_id]) > 1:
                     x, y = double_results[entity_id]
-                    max_score = results[x]['max_score'] if hasattr(results[x], 'max_score') else results[y]['max_score']
                     combined_atlas = (results[x]['atlas_score'] + results[y]['atlas_score'])
                     normalized_score = combined_atlas / max_score
                     results[x]['score'] = normalized_score + results[x]['listen_score'] + results[x]['aps_score']
                     del results[y]
-
         except Exception:
             raise
     def clean_up_scores(self, results):
