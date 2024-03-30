@@ -48,7 +48,8 @@ class SearchClient:
             double_results = {}
             max_score = max(result['atlas_score'] for result in results)
             for c, i in enumerate(results):
-                normalized_score = i['normalized_score'] if hasattr(i, 'normalized_score') else (i['atlas_score'] / max_score)
+                normalized_score = i['normalized_score'] if hasattr(i, 'normalized_score') else (
+                            i['atlas_score'] / max_score)
                 i['score'] = normalized_score + i['listen_score'] + i['aps_score']
                 entity_id = i[f"{i['entity_type']}_id"]
                 double_results.setdefault(entity_id, []).append(c)
@@ -60,6 +61,7 @@ class SearchClient:
                     del results[y]
         except Exception:
             raise
+
     def clean_up_scores(self, results):
         del_keys = ['max_score', 'advanced_popularity', 'listen_score', 'aps_score', 'atlas_score', 'normalized_score']
         for result in results:
