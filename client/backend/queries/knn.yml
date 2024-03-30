@@ -26,6 +26,11 @@
         - $advanced_popularity
         - 0
 - $addFields:
+    normalized_score:
+      $divide:
+        - $atlas_score
+        - 10
+- $addFields:
     aps_score:
       $divide:
         - $advanced_popularity
@@ -33,7 +38,7 @@
 - $addFields:
     score:
       $add:
-        - $atlas_score
+        - $normalized_score
         - $listen_score
         - $aps_score
 - $set:

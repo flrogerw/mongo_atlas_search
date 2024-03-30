@@ -31,9 +31,9 @@ class SearchClient:
     def search(self, search_phrase, language='en', ent_type='all', max_results=10):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
-            print(pipeline)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
             self.merge_records(search_result)
+            self.clean_up_scores(search_result)
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
             return sorted_list
         except Exception:
@@ -42,16 +42,25 @@ class SearchClient:
     """
     Merge scores when both semantic and lexical matches appear in the result set.
     """
-    def merge_records(self, raw_results):
+
+    def merge_records(self, results):
         try:
             double_results = {}
-            for c, i in enumerate(raw_results):
+            for c, i in enumerate(results):
                 entity_id = i[f"{i['entity_type']}_id"]
                 double_results.setdefault(entity_id, []).append(c)
                 if len(double_results[entity_id]) > 1:
                     x, y = double_results[entity_id]
-                    raw_results[x]['score'] += raw_results[y]['score']
-                    # advanced_popularity atlas_score listen_score aps_score
-                    del raw_results[y]
+                    max_score = results[x]['max_score'] if results[x]['max_score'] else results[y]['max_score']
+                    combined_atlas = (results[x]['atlas_score'] + results[y]['atlas_score'])
+                    normalized_score = combined_atlas / max_score
+                    results[x]['score'] = normalized_score + results[x]['listen_score'] + results[x]['aps_score']
+                    del results[y]
+
         except Exception:
             raise
+    def clean_up_scores(self, results):
+        del_keys = ['max_score', 'advanced_popularity', 'listen_score', 'aps_score', 'atlas_score', 'normalized_score']
+        for result in results:
+            for k in del_keys:
+                result.pop(k, None)

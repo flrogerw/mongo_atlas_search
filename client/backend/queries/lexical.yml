@@ -20,7 +20,7 @@
     apsScore: 1
 - $setWindowFields:
     output:
-      maxScore:
+      max_score:
         $max: $atlas_score
 
 - $addFields:
@@ -36,7 +36,7 @@
     normalized_score:
       $divide:
         - $atlas_score
-        - $maxScore
+        - $max_score
 - $addFields:
     aps_score:
       $divide:
