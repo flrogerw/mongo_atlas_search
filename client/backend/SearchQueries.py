@@ -36,6 +36,7 @@ class SearchQueries:
 
     def build_query(self, search_phrase, max_results, ent_type, language):
         search_phrase = self.nlp.clean_text(search_phrase).lower()
+        print(search_phrase)
         lemma_text = self.nlp.get_lemma(search_phrase, language)
         vector = self.nlp.get_vector(search_phrase, model)
         pipeline = []
