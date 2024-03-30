@@ -35,7 +35,7 @@ class SearchClient:
             self.merge_records(search_result)
             self.clean_up_scores(search_result)
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            return sorted_list
+            return sorted_list[:max_results]
         except Exception:
             raise
 
