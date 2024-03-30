@@ -51,7 +51,7 @@ class SearchClient:
                 double_results.setdefault(entity_id, []).append(c)
                 if len(double_results[entity_id]) > 1:
                     x, y = double_results[entity_id]
-                    max_score = results[x]['max_score'] if results[x]['max_score'] else results[y]['max_score']
+                    max_score = results[x]['max_score'] if hasattr(results[x], 'max_score') else results[y]['max_score']
                     combined_atlas = (results[x]['atlas_score'] + results[y]['atlas_score'])
                     normalized_score = combined_atlas / max_score
                     results[x]['score'] = normalized_score + results[x]['listen_score'] + results[x]['aps_score']
