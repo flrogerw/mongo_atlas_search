@@ -34,9 +34,10 @@ THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 SERVER_CLUSTER_SIZE = int(sys.argv[1])
 CLUSTER_SERVER_ID = int(sys.argv[2])
+LANGUAGES = os.getenv('LANGUAGES').split(",")
 
 thread_lock = threading.Lock()
-text_processor = StanzaNLP()
+text_processor = StanzaNLP(LANGUAGES)
 good_record_count = 0
 total_record_count = 0
 entity_struct_id = 510

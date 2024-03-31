@@ -5,15 +5,13 @@ import threading
 import queue
 import redis
 import time
-import spacy
 import traceback
 from dotenv import load_dotenv
 from thread_workers.StationProcessor import StationProcessor
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
-from spacy_langdetect import LanguageDetector
-from spacy.language import Language
 from sentence_transformers import SentenceTransformer
+from nlp.StanzaNLP import StanzaNLP
 
 # Load System ENV VARS
 load_dotenv()
@@ -29,21 +27,12 @@ DB_HOST = os.getenv('DB_HOST')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
 STATIONS_CSV_FILE = os.getenv('STATIONS_CSV_FILE')
 REDIS_HOST = os.getenv('REDIS_HOST')
+LANGUAGES = os.getenv('LANGUAGES').split(",")
 
 threadLock = threading.Lock()
+text_processor = StanzaNLP(LANGUAGES)
 record_count = 0
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
-""" Required to load properly below """
-
-
-def get_lang_detector(nlp, name):
-    return LanguageDetector()
-
-
-# Load Language Model
-nlp = spacy.load(LANGUAGE_MODEL)
-Language.factory("language_detector", func=get_lang_detector)
-nlp.add_pipe('language_detector', last=True)
 
 # Setup Sentence Transformer
 model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
@@ -119,7 +108,7 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = StationProcessor(jobs, active_q, errors_q, quarantine_q, purgatory_q, nlp, model, threadLock)
+            w = StationProcessor(jobs, active_q, errors_q, quarantine_q, purgatory_q, text_processor, model, threadLock)
             # w.daemon = True
             w.start()
             threads.append(w)

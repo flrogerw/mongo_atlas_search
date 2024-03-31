@@ -39,18 +39,7 @@ class SearchQueries:
         lemma_text = self.nlp.get_lemma(search_phrase, language)
         vector = self.nlp.get_vector(search_phrase, model)
         pipeline = []
-        search_collection = None
-        if ent_type == 'all':
-            is_primary = True
-            for entity in SEARCHABLE_ENTITIES:
-                collection = f"{entity}_{language}"
-                search_collection = collection if is_primary else search_collection
-                ent_type = entity
-                pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, is_primary))
-                is_primary = False
-                pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, is_primary))
-        else:
-            search_collection = collection = f"{ent_type}_{language}"
-            pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, True))
-            pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, False))
+        search_collection = collection = f"{ent_type}_{language}"
+        pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, True))
+        pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, False))
         return search_collection, pipeline

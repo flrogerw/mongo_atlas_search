@@ -7,14 +7,13 @@ import hashlib
 import pickle
 import traceback
 from dotenv import load_dotenv
-from nlp.ProcessText import ProcessText
 from logger.Logger import ErrorLogger
 
 load_dotenv()
 
 # Load System ENV VARS
-GET_TOKENS = os.getenv('GET_TOKENS').split(",")
-FIELD_TO_VECTOR = os.getenv('STATION_VECTOR')
+FIELDS_TO_LEMMA = os.getenv('FIELDS_TO_LEMMA').split(",")
+FIELDS_TO_VECTOR = os.getenv('STATION_FIELDS_TO_VECTOR').split(",")
 MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_STATION_DESC_LENGTH'))
 MIN_TITLE_LENGTH = int(os.getenv('MIN_STATION_TITLE_LENGTH'))
 LANGUAGES = os.getenv('LANGUAGES').split(",")
@@ -23,7 +22,6 @@ REDIS_HOST = os.getenv('REDIS_HOST')
 REDIS_USER = os.getenv('REDIS_USER')
 REDIS_PASS = os.getenv('REDIS_PASS')
 FLUSH_REDIS_ON_START = bool(os.getenv('FLUSH_REDIS_ON_START'))
-STATION_VECTOR = os.getenv('STATION_VECTOR')
 READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
 
 if FLUSH_REDIS_ON_START:
@@ -57,12 +55,6 @@ class StationProcessor(threading.Thread):
             self.job_queue.task_done()
 
     @staticmethod
-    def construct_description(response, job):
-        seo_cleaned = ProcessText.return_clean_text(job['seo_description'])
-        response['description_cleaned'] = response['description_cleaned'] if len(response['description_cleaned']) > len(
-            seo_cleaned) else seo_cleaned
-
-    @staticmethod
     def validate_text_length(msg):
         try:
             description_len = len(msg['description_cleaned'].split(' '))
@@ -73,19 +65,21 @@ class StationProcessor(threading.Thread):
         except Exception:
             raise
 
-    def get_tokens(self, response, job):
-        response['title_lemma'] = ProcessText(f"{job['call_sign']} {response['title_cleaned']}",
-                                              response['language']).get_tokens()
-        lemma_string = f"{job['slogan']} {response['description_cleaned']}" if job['slogan'] != response[
-            'description_cleaned'] else response['description_cleaned']
-        response['description_lemma'] = ProcessText(lemma_string, response['language']).get_tokens()
+    def get_field_lemmas(self, message, language):
+        try:
+            for key in FIELDS_TO_LEMMA:
+                lemma_key = f"{key.split('_')[0]}_lemma"
+                message[lemma_key] = self.nlp.get_lemma(message[key], language)
+        except Exception:
+            raise
 
-    def process_search_fields(self, msg):
-        for key in GET_TOKENS:
-            lemma_key = f"{key.split('_')[0]}_lemma"
-            msg[lemma_key] = ProcessText.return_lemma(msg[key], msg['language'])
-        # msg['vector'] = pickle.dumps(ProcessText.get_vector(msg[FIELD_TO_VECTOR], self.model))
-        msg['vector'] = ProcessText.get_vector(msg[FIELD_TO_VECTOR], self.model).tolist()
+    def get_field_vectors(self, station):
+        try:
+            for key in FIELDS_TO_VECTOR:
+                vector_key = f"{key.split('_')[0]}_vector"
+                station[vector_key] = pickle.dumps(self.nlp.get_vector(station[key], self.model))
+        except Exception:
+            raise
 
     def process(self, job):
         job = dict((k, v if v != '(null)' else '') for k, v in job.items())
@@ -95,41 +89,33 @@ class StationProcessor(threading.Thread):
             "is_searchable": job['is_searchable'],
             "index_status": 310,
             "advanced_popularity": 1,
-            "title_cleaned": ProcessText.return_clean_text(job['station_name']),
+            "title_cleaned": self.nlp.clean_text(job['station_name']),
             "language": job['language'],
-            "description_cleaned": ProcessText.return_clean_text(job['description']),
+            "description_cleaned": self.nlp.clean_text(job['description']),
             "image_url": job['image_url']
         }
 
         try:
             job_hash = hashlib.md5(str(job).encode()).hexdigest()
-            previous_station_uuid = self.redis.get(f"{self.entity_type}_{job_hash}")
+            previous_record_hash = self.redis.get(f"{self.entity_type}_{station['station_uuid']}")
 
-            if previous_station_uuid == station['station_uuid']:
-                raise QuarantineError({"station_uuid": station['station_uuid'],
-                                       "original_station_uuid": previous_station_uuid})
-            # Set entry in Redis
-            else:
-                self.redis.set(f"{self.entity_type}_{job_hash}", station['station_uuid'])
-
-            # First Pass at Filtering Garbage
-            self.validate_text_length(station)
-
-            # Set some basic values
-            if not station['language']:
-                station['language'] = ProcessText.get_language_from_model(job['description'], self.nlp)[0]
+            # Check for supported Languages
             if station['language'] not in LANGUAGES:
                 raise TypeError(f"Language not supported: {station['language']}.")
-
-            # Do the processing
-            self.construct_description(station, job)
-            self.validate_text_length(station)
-            self.process_search_fields(station)
-            self.get_tokens(station, job)
-            station['vector'] = pickle.dumps(ProcessText.get_vector(station[STATION_VECTOR], self.model))
-            with self.thread_lock:
-                self.complete_queue.put(station)
-
+            # Check for Exact Duplicates using hash of the message dictionary and UUID5 of Rss URL.
+            elif previous_record_hash == job_hash:
+                raise TypeError(f"File {station['rss_url']} is a duplicate to: {previous_record_hash}.")
+            # Same URL Different Body. title says "DELETED"??
+            elif previous_record_hash:
+                raise QuarantineError({"station_uuid": station['station_uuid'],
+                                       "original_station_uuid": station['station_uuid']})
+            else:
+                self.redis.set(f"{self.entity_type}_{station['station_uuid']}", job_hash)
+                self.validate_text_length(station)
+                self.get_field_lemmas(station, job['lemma_language'])
+                self.get_field_vectors(station)
+                with self.thread_lock:
+                    self.complete_queue.put(station)
         except TypeError as err:
             # print(traceback.format_exc())
             self.logger.log_to_purgatory(station, str(err))
