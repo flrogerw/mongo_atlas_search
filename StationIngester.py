@@ -121,10 +121,14 @@ if __name__ == '__main__':
             headers = next(reader)[0:]
             for row in reader:
                 record_count += 1
-                jobs.put({key: value for key, value in zip(headers, row[0:])})
-                if record_count % 10000 == 0:
-                    sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
-                    sys.stdout.flush()
+                record = {key: value for key, value in zip(headers, row[0:])}
+                if record['is_searchable'] == 't':
+                    jobs.put(record)
+                    if record_count % 10000 == 0:
+                        sys.stdout.write("Job Queue Loading: %d   \r" % record_count)
+                        sys.stdout.flush()
+                else:
+                    continue
         jobs.join()
 
         for thread in threads:
