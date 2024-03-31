@@ -29,19 +29,26 @@ class SearchClient:
             # return self.client.search(body=query, index=index)
         except Exception:
             raise
-    def do_search(self, search_phrase, max_results, ent_type, language):
-        collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
-        search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
-        self.merge_records(search_result)
-        self.clean_up_scores(search_result)
-        return search_result
 
-    def search(self, search_phrase, language='en', ent_type='all', max_results=10):
+    def do_search(self, search_phrase, max_results, ent_type, language):
+        try:
+            collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
+            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            if len(search_result ) > 0:
+                self.merge_records(search_result)
+                self.clean_up_scores(search_result)
+            return search_result
+        except Exception:
+            raise
+
+    def search(self, search_phrase, language='en', ent_type='all', max_results=10, query_type='all'):
         try:
             search_result = []
             if ent_type == 'all':
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
-                    future_result = {executor.submit(self.do_search, search_phrase, max_results, entity, language): entity for entity in SEARCHABLE_ENTITIES}
+                    future_result = {
+                        executor.submit(self.do_search, search_phrase, max_results, entity, language): entity for entity
+                        in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:
                             search_result.extend(future.result())
@@ -65,7 +72,7 @@ class SearchClient:
             max_score = max(result['atlas_score'] for result in results)
             for c, i in enumerate(results):
                 normalized_score = i['normalized_score'] if hasattr(i, 'normalized_score') else (
-                            i['atlas_score'] / max_score)
+                        i['atlas_score'] / max_score)
                 i['score'] = normalized_score + i['listen_score'] + i['aps_score']
                 entity_id = i[f"{i['entity_type']}_id"]
                 double_results.setdefault(entity_id, []).append(c)

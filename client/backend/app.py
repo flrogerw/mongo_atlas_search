@@ -1,6 +1,6 @@
 import sys
 import json
-from flask import Flask, request
+from flask import Flask, request, Response
 from SearchClient import SearchClient
 
 # sys.path.append("..")
@@ -25,13 +25,27 @@ def search_as_you_type():
 
 @app.route('/search', methods=["GET"])
 def search():
-    response = client.search(
-        request.args.get('search_phrase'),
-        request.args.get('lang'),
-        request.args.get('ent_type'),
-        request.args.get('max_results'))
-    return json.dumps(response)
+    try:
+        r = request.args
+        search_phrase = r.get('search_phrase') if r.get('search_phrase') else ''
+        lang = r.get('lang') if r.get('lang') else 'en'
+        ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
+        max_results = r.get('max_results') if r.get('max_results') else 20
+        query_type = r.get('qm') if r.get('qm') else 'all'
 
-
+        if len(search_phrase) < 2:
+            raise Exception('Search Phrase must be at least 2 characters')
+        response = client.search(
+            search_phrase,
+            lang,
+            ent_type,
+            max_results,
+            query_type)
+        return json.dumps(response)
+    except Exception as err:
+        return Response(
+            json.dumps({"message": str(err)}),
+            status=418,
+        )
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
