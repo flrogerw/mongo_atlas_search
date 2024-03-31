@@ -63,7 +63,7 @@ if __name__ == '__main__':
             batches = db.select_mongo_batches(f"{entity}_quality", SEARCH_FIELDS, LIMIT, entity, has_ingest_table, languages)
             total = 0
             for batch in batches:
-                for record in batch:
+                for record in batch: ##  MAKE THIS LOOP THE VECTOR_FIELDS ENVAR
                     record['description_vector'] = pickle.loads(record['description_vector']).tolist()
                 send_to_mongo(db, batch, collection)
                 total += len(batch)

@@ -2,6 +2,7 @@ from SearchQueries import SearchQueries
 import pymongo
 from dotenv import load_dotenv
 import os
+import concurrent.futures
 
 load_dotenv()
 MONGO_DATABASE_NAME = os.getenv('MONGO_DATABASE_NAME')
@@ -11,6 +12,7 @@ MONGO_HOST = os.getenv('MONGO_HOST')
 MONGO_PORT = os.getenv('MONGO_PORT')
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 ATLAS_DB = os.getenv('ATLAS_DB')
+SEARCHABLE_ENTITIES = os.getenv('SEARCHABLE_ENTITIES').split(",")
 
 
 class SearchClient:
@@ -27,13 +29,27 @@ class SearchClient:
             # return self.client.search(body=query, index=index)
         except Exception:
             raise
+    def do_search(self, search_phrase, max_results, ent_type, language):
+        collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
+        search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+        self.merge_records(search_result)
+        self.clean_up_scores(search_result)
+        return search_result
 
     def search(self, search_phrase, language='en', ent_type='all', max_results=10):
         try:
-            collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
-            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
-            self.merge_records(search_result)
-            self.clean_up_scores(search_result)
+            search_result = []
+            if ent_type == 'all':
+                with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
+                    future_result = {executor.submit(self.do_search, search_phrase, max_results, entity, language): entity for entity in SEARCHABLE_ENTITIES}
+                    for future in concurrent.futures.as_completed(future_result):
+                        try:
+                            search_result.extend(future.result())
+                        except Exception:
+                            raise
+            else:
+                search_result = self.do_search(search_phrase, max_results, ent_type, language)
+
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
             return sorted_list[:int(max_results)]
         except Exception:

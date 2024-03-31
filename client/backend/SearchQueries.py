@@ -5,7 +5,6 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
 load_dotenv()
-SEARCHABLE_ENTITIES = os.getenv('SEARCHABLE_ENTITIES').split(",")
 VECTOR_MODEL_NAME = os.getenv('VECTOR_MODEL_NAME')
 
 model = SentenceTransformer(VECTOR_MODEL_NAME)

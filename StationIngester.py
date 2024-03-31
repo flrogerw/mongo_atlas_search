@@ -104,7 +104,7 @@ def monitor(id, stop):
 if __name__ == '__main__':
     fetcher_type = 'listen_notes'
     try:
-        print('Process Started')
+        print('Station Ingester Process Started')
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
