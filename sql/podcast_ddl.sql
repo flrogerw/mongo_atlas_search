@@ -179,6 +179,7 @@ CREATE TABLE station_purgatory (
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
     , title_cleaned                                                             TEXT                                           				-- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
+    , search_language                                                           VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT
     , image_url                                                                 TEXT                                                		-- to OS
     , reason_for_failure                                                        TEXT                                        NOT NULL
@@ -211,6 +212,7 @@ CREATE TABLE station_quality (
     , title_cleaned                                                             TEXT                                           				-- to OS
     , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
+    , search_language                                                           VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , description_vector                                                        BYTEA                                       NOT NULL        -- to OS

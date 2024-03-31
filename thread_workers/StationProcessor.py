@@ -65,11 +65,11 @@ class StationProcessor(threading.Thread):
         except Exception:
             raise
 
-    def get_field_lemmas(self, message, language):
+    def get_field_lemmas(self, message):
         try:
             for key in FIELDS_TO_LEMMA:
                 lemma_key = f"{key.split('_')[0]}_lemma"
-                message[lemma_key] = self.nlp.get_lemma(message[key], language)
+                message[lemma_key] = self.nlp.get_lemma(message[key], message['search_language'])
         except Exception:
             raise
 
@@ -91,6 +91,7 @@ class StationProcessor(threading.Thread):
             "advanced_popularity": 1,
             "title_cleaned": self.nlp.clean_text(job['station_name']),
             "language": job['language'],
+            "search_language": job['search_language'],
             "description_cleaned": self.nlp.clean_text(job['description']),
             "image_url": job['image_url']
         }
@@ -112,7 +113,7 @@ class StationProcessor(threading.Thread):
             else:
                 self.redis.set(f"{self.entity_type}_{station['station_uuid']}", job_hash)
                 self.validate_text_length(station)
-                self.get_field_lemmas(station, job['lemma_language'])
+                self.get_field_lemmas(station)
                 self.get_field_vectors(station)
                 with self.thread_lock:
                     self.complete_queue.put(station)

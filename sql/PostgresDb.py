@@ -64,7 +64,7 @@ class PostgresDb:
             ingest_ids = dict()
             argument_string = str([(d['record_hash'], d[f"{entity_type}_uuid"]) for d in response]).strip('[]')
             self.cursor.execute(
-                f"INSERT INTO {entity_type}_ingest (record_hash, {entity_type}_uuid) VALUES {argument_string} RETURNING record_hash,{entity_type}_ingest_id as {entity_type}_{table_type}_id")
+                f"INSERT INTO {entity_type}_ingest (hash_record, {entity_type}_uuid) VALUES {argument_string} RETURNING hash_record,{entity_type}_ingest_id as {entity_type}_{table_type}_id")
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
                 ingest_ids[x['record_hash']] = x[f"{entity_type}_{table_type}_id"]
