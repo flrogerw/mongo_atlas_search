@@ -6,7 +6,7 @@
         - title_lemma
         - description_lemma
         fuzzy:
-          maxEdits: 1
+          maxEdits: 2
 - $match :
     search_language : {language}
 - $project:
