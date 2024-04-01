@@ -53,19 +53,23 @@ class SearchQueries:
         except Exception:
             raise
 
-    def build_query(self, search_phrase, max_results, ent_type, language):
+    def build_query(self, search_phrase, max_results, ent_type, language, query_type):
         try:
             search_phrase = self.nlp.clean_text(search_phrase).lower()
-            lemma_text = self.nlp.get_lemma(search_phrase, language)
-            vector = self.nlp.get_vector(search_phrase, model)
             pipeline = []
             if ent_type == 'station':
                 collection = ent_type
+                lemma_text = self.nlp.get_lemma(search_phrase, language)
                 pipeline.extend(self.get_station_query(max_results, ent_type, collection, language, lemma_text))
             else:
                 collection = f"{ent_type}_{language}"
-                pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, True))
-                pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, False))
+                if query_type in ['all', 's']:
+                    vector = self.nlp.get_vector(search_phrase, model)
+                    pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, True))
+                if query_type in ['all', 'l']:
+                    primary = True if query_type == 'l' else False
+                    lemma_text = self.nlp.get_lemma(search_phrase, language)
+                    pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, primary))
             return collection, pipeline
         except Exception:
             raise

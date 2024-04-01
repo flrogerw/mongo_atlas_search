@@ -1,9 +1,12 @@
-import sys
+import os
 import json
 from flask import Flask, request, Response
 from SearchClient import SearchClient
+from dotenv import load_dotenv
 
-# sys.path.append("..")
+load_dotenv()
+LANGUAGES = os.getenv('LANGUAGES').split(",")
+
 
 app = Flask(__name__)
 client = SearchClient()
@@ -35,13 +38,18 @@ def search():
 
         if len(search_phrase) < 2:
             raise Exception('Search Phrase must be at least 2 characters')
-        response = client.search(
-            search_phrase,
-            lang,
-            ent_type,
-            max_results,
-            query_type)
-        return json.dumps(response)
+        elif lang not in LANGUAGES:
+            raise Exception(f'{lang} is not a supported language')
+        elif query_type not in ['s','l','all']:
+            raise Exception(f"{query_type} is not a supported search type of (s)emantic, (l)exical or all)")
+        else:
+            response = client.search(
+                search_phrase,
+                lang,
+                ent_type,
+                max_results,
+                query_type)
+            return json.dumps(response)
     except Exception as err:
         return Response(
             json.dumps({"message": str(err)}),

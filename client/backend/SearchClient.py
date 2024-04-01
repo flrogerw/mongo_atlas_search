@@ -30,9 +30,9 @@ class SearchClient:
         except Exception:
             raise
 
-    def do_search(self, search_phrase, max_results, ent_type, language):
+    def do_search(self, search_phrase, max_results, ent_type, language, query_type):
         try:
-            collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language)
+            collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language, query_type)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
             if len(search_result ) > 0:
                 self.merge_records(search_result)
@@ -47,7 +47,7 @@ class SearchClient:
             if ent_type == 'all':
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                     future_result = {
-                        executor.submit(self.do_search, search_phrase, max_results, entity, language): entity for entity
+                        executor.submit(self.do_search, search_phrase, max_results, entity, language, query_type,): entity for entity
                         in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:
@@ -55,7 +55,7 @@ class SearchClient:
                         except Exception:
                             raise
             else:
-                search_result = self.do_search(search_phrase, max_results, ent_type, language)
+                search_result = self.do_search(search_phrase, max_results, ent_type, language, query_type)
 
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
             return sorted_list[:int(max_results)]
