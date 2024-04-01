@@ -34,13 +34,13 @@ def search():
         lang = r.get('lang') if r.get('lang') else 'en'
         ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
         max_results = r.get('max_results') if r.get('max_results') else 20
-        query_type = r.get('qm') if r.get('qm') else 'all'
+        query_type = r.get('qm') if r.get('qm') else 'b'
 
         if len(search_phrase) < 2:
             raise Exception('Search Phrase must be at least 2 characters')
         elif lang not in LANGUAGES:
             raise Exception(f'{lang} is not a supported language')
-        elif query_type not in ['s','l','all']:
+        elif query_type not in ['s','l','b']:
             raise Exception(f"{query_type} is not a supported search type of (s)emantic, (l)exical or all)")
         else:
             response = client.search(

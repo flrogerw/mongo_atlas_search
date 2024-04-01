@@ -63,10 +63,10 @@ class SearchQueries:
                 pipeline.extend(self.get_station_query(max_results, ent_type, collection, language, lemma_text))
             else:
                 collection = f"{ent_type}_{language}"
-                if query_type in ['all', 's']:
+                if query_type in ['b', 's']:
                     vector = self.nlp.get_vector(search_phrase, model)
                     pipeline.extend(self.get_knn_query(max_results, ent_type, collection, vector, True))
-                if query_type in ['all', 'l']:
+                if query_type in ['b', 'l']:
                     primary = True if query_type == 'l' else False
                     lemma_text = self.nlp.get_lemma(search_phrase, language)
                     pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, primary))
