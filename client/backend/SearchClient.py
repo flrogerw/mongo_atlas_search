@@ -41,7 +41,7 @@ class SearchClient:
         except Exception:
             raise
 
-    def search(self, search_phrase, language='en', ent_type='all', max_results=10, query_type='all'):
+    def search(self, search_phrase, language='en', ent_type='all', max_results=10, query_type='b'):
         try:
             search_result = []
             if ent_type == 'all':

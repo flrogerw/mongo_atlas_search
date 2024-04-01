@@ -9,6 +9,7 @@
     "{entity_id_field}": 1
     title: 1
     image_url: 1
+    owner: 1
     description: 1
     finalScore: 1
     advanced_popularity: 1
@@ -25,6 +26,10 @@
       $ifNull:
         - $advanced_popularity
         - 0
+    owner:
+      $ifNull:
+        - $owner
+        - 'Unknown'
 - $addFields:
     normalized_score:
       $divide:

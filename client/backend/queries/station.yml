@@ -6,7 +6,7 @@
         - title_lemma
         - description_lemma
         fuzzy:
-          maxEdits: 2
+          maxEdits: 1
 - $match :
     search_language : {language}
 - $project:
@@ -15,13 +15,12 @@
     title: 1
     image_url: 1
     description: 1
-    finalScore: 1
     advanced_popularity: 1
     atlas_score:
         $meta: searchScore
     listen_score: 1
     normalized_score: 1
-    apsScore: 1
+    aps_score: 1
 - $addFields:
     listen_score:
       $ifNull:
