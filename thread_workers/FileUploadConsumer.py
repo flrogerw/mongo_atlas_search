@@ -57,7 +57,8 @@ class FileUploadConsumer(threading.Thread):
                 else:
                     self.update_q.put(dict({
                         'podcast_uuid': kafka_message['podcast_uuid'],
-                        'rss_url': f"URL returned a {res.status_code} error"
+                        'rss_url': f"URL returned a {res.status_code} error",
+
                     }))
 
             else:

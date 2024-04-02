@@ -1,26 +1,40 @@
 - $search:
-    index: lemma
+    index:
+      lemma
     text:
-        query: {lemma_text}
+        query:
+          {lemma_text}
         path:
         - title_lemma
         - description_lemma
         fuzzy:
-          maxEdits: 1
+          maxEdits:
+            1
 - $match :
-    search_language : {language}
+    search_language :
+      {language}
 - $project:
-    _id: 0
-    "{entity_id_field}": 1
-    title: 1
-    image_url: 1
-    description: 1
-    advanced_popularity: 1
+    _id:
+      0
+    "{entity_id_field}":
+      1
+    title:
+      1
+    image_url:
+      1
+    description:
+      1
+    advanced_popularity:
+      1
     atlas_score:
-        $meta: searchScore
-    listen_score: 1
-    normalized_score: 1
-    aps_score: 1
+        $meta:
+          searchScore
+    listen_score:
+      1
+    normalized_score:
+      1
+    aps_score:
+      1
 - $addFields:
     listen_score:
       $ifNull:
@@ -40,5 +54,7 @@
         - $advanced_popularity
         - 200
 - $set:
-    entity_type: {ent_type}
-- $limit: {max_results}
+    entity_type:
+      {ent_type}
+- $limit:
+    {max_results}

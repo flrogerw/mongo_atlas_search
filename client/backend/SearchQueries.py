@@ -16,6 +16,7 @@ class SearchQueries:
         self.knn = self.load_query('queries/knn.yml')
         self.lexical = self.load_query('queries/lexical.yml')
         self.station = self.load_query('queries/station.yml')
+        self.autocomplete = self.load_query('queries/autocomplete.yml')
 
     def load_query(self, query_file):
         try:
@@ -52,6 +53,20 @@ class SearchQueries:
             return [{"$unionWith": {"coll": collection, "pipeline": query_dict}}] if not primary else query_dict
         except Exception:
             raise
+
+    def get_autocomplete_query(self, search_phrase, max_results, language):
+        try:
+            query_yaml = self.autocomplete.format(max_results=max_results, language=language, query_text=search_phrase)
+            return yaml.safe_load(query_yaml)
+        except Exception:
+            raise
+
+    def build_autocomplete(self, search_phrase, max_results, ent_type, language):
+        pipeline = []
+        collection = ent_type if ent_type == "station" else f"{ent_type}_{language}"
+        search_phrase = self.nlp.clean_text(search_phrase).lower()
+        pipeline.extend(self.get_autocomplete_query(search_phrase, max_results, language))
+        return collection, pipeline
 
     def build_query(self, search_phrase, max_results, ent_type, language, query_type):
         try:

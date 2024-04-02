@@ -20,10 +20,27 @@ def update_aps():
 
 @app.route('/search_as_you_type', methods=["GET"])
 def search_as_you_type():
-    search_phrase = request.args.get('search_phrase')
-    index = request.args.get('index')
-    response = client.search_as_you_type(search_phrase, index, 10)
-    return json.dumps(response["hits"]["hits"])
+    try:
+        r = request.args
+        search_phrase = r.get('search_phrase') if r.get('search_phrase') else ''
+        lang = r.get('lang') if r.get('lang') else 'en'
+        ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
+        if len(search_phrase) < 2:
+            raise Exception('Search Phrase must be at least 2 characters')
+        elif lang not in LANGUAGES:
+            raise Exception(f'{lang} is not a supported language')
+        else:
+            response = client.search(
+                search_phrase,
+                lang,
+                ent_type)
+            return json.dumps(response)
+
+    except Exception as err:
+        return Response(
+            json.dumps({"message": str(err)}),
+            status=418,
+        )
 
 
 @app.route('/search', methods=["GET"])
@@ -41,7 +58,7 @@ def search():
         elif lang not in LANGUAGES:
             raise Exception(f'{lang} is not a supported language')
         elif query_type not in ['s','l','b']:
-            raise Exception(f"{query_type} is not a supported search type of (s)emantic, (l)exical or all)")
+            raise Exception(f"{query_type} is not a supported search type of (s)emantic, (l)exical or (b)oth))")
         else:
             response = client.search(
                 search_phrase,

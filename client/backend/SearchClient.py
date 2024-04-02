@@ -3,6 +3,7 @@ import pymongo
 from dotenv import load_dotenv
 import os
 import concurrent.futures
+import re
 
 load_dotenv()
 MONGO_DATABASE_NAME = os.getenv('MONGO_DATABASE_NAME')
@@ -21,22 +22,48 @@ class SearchClient:
         self.client = pymongo.MongoClient(
             f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/?directConnection=true")
 
-    def search_as_you_type(self, search_phrase, index, size=10):
-        try:
-            query = self.queries.get('search_as_you_type')
-            # nlp_text = self.nlp(search_phrase)
-            # query = query % (int(size), nlp_text.get_clean())
-            # return self.client.search(body=query, index=index)
-        except Exception:
-            raise
+    @staticmethod
+    def highlight(search_result, search_phrase):
+        keywords = search_phrase.split()
+        for result in search_result:
+            replacement = lambda match: re.sub(r'([^\s]+)', r'[m]\1[/m]', match.group())
+            result['title'] = re.sub("|".join(map(re.escape, keywords)), replacement, result['title'], flags=re.I)
 
     def do_search(self, search_phrase, max_results, ent_type, language, query_type):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language, query_type)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
-            if len(search_result ) > 0:
+            if len(search_result) > 0:
                 self.merge_records(search_result)
                 self.clean_up_scores(search_result)
+            return search_result
+        except Exception:
+            raise
+
+    def do_autocomplete(self, search_phrase, max_results, ent_type, language):
+        try:
+            collection, pipeline = self.queries.build_autocomplete(search_phrase, max_results, ent_type, language)
+            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            self.highlight(search_result, search_phrase)
+            return search_result
+        except Exception:
+            raise
+
+    def search_as_you_type(self, search_phrase, language, max_results=10):
+        try:
+            search_result = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
+                future_result = {
+                    executor.submit(self.do_autocomplete, search_phrase, max_results, entity, language): entity for
+                    entity
+                    in ['station']}
+                for future in concurrent.futures.as_completed(future_result):
+                    try:
+                        search_result.extend(future.result())
+                    except Exception:
+                        raise
+            # sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+            # return sorted_list[:int(max_results)]
             return search_result
         except Exception:
             raise
@@ -47,7 +74,8 @@ class SearchClient:
             if ent_type == 'all':
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                     future_result = {
-                        executor.submit(self.do_search, search_phrase, max_results, entity, language, query_type,): entity for entity
+                        executor.submit(self.do_search, search_phrase, max_results, entity, language,
+                                        query_type, ): entity for entity
                         in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:

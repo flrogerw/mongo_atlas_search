@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "title": [
+        {
+          "type": "autocomplete",
+          "minGrams": 2,
+          "maxGrams": 7,
+          "foldDiacritics": false,
+          "tokenization": "edgeGram"
+        },
+        {
+          "type": "string",
+          "indexOptions": "offsets",
+          "store": true,
+          "norms": "include"
+        }
+      ]
+    }
+  }
+}

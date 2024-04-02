@@ -1,0 +1,40 @@
+- $search:
+    index: autocomplete
+    compound:
+      should:
+        - autocomplete:
+            query: { query_text }
+            path: title
+            tokenOrder:
+              sequential
+            fuzzy:
+              maxEdits:
+                1
+              prefixLength:
+                2
+              maxExpansions:
+                256
+        - text:
+            query: { query_text }
+            path: title
+            fuzzy:
+              maxEdits:
+                1
+              prefixLength:
+                2
+              maxExpansions:
+                256
+      minimumShouldMatch: 1
+- $match:
+    language:
+      { language }
+- $project:
+    _id:
+      0
+    title:
+      1
+    score:
+      $meta:
+        searchScore
+- $limit:
+    { max_results }
