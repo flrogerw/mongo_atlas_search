@@ -10,14 +10,12 @@ from dotenv import load_dotenv
 from thread_workers.StationProcessor import StationProcessor
 from sql.PostgresDb import PostgresDb
 from datetime import datetime
-from sentence_transformers import SentenceTransformer
 from nlp.StanzaNLP import StanzaNLP
 
 # Load System ENV VARS
 load_dotenv()
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
 JOB_RECORDS_TO_PULL = int(os.getenv('JOB_RECORDS_TO_PULL'))
-LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 FLUSH_REDIS_ON_START = os.getenv('FLUSH_REDIS_ON_START')
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')
@@ -34,8 +32,7 @@ text_processor = StanzaNLP(LANGUAGES)
 record_count = 0
 db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
 
-# Setup Sentence Transformer
-model = SentenceTransformer(os.getenv('VECTOR_MODEL_NAME'))
+
 
 # Setup Redis
 redisCli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
@@ -108,7 +105,7 @@ if __name__ == '__main__':
         stop_monitor = False
         threads = []
         for i in range(THREAD_COUNT):
-            w = StationProcessor(jobs, active_q, errors_q, quarantine_q, purgatory_q, text_processor, model, threadLock)
+            w = StationProcessor(jobs, active_q, errors_q, quarantine_q, purgatory_q, text_processor, threadLock)
             # w.daemon = True
             w.start()
             threads.append(w)

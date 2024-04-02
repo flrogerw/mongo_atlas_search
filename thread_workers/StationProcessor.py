@@ -4,7 +4,6 @@ import threading
 import queue
 import redis
 import hashlib
-import pickle
 import traceback
 from dotenv import load_dotenv
 from logger.Logger import ErrorLogger
@@ -33,11 +32,10 @@ if FLUSH_REDIS_ON_START:
 
 
 class StationProcessor(threading.Thread):
-    def __init__(self, job_queue, good_queue, errors_q, quarantine_q, purgatory_q, nlp, model, thread_lock,
+    def __init__(self, job_queue, good_queue, errors_q, quarantine_q, purgatory_q, nlp, thread_lock,
                  *args, **kwargs):
         self.nlp = nlp
         self.thread_lock = thread_lock
-        self.model = model
         self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.complete_queue = good_queue
         self.job_queue = job_queue
@@ -70,14 +68,6 @@ class StationProcessor(threading.Thread):
             for key in FIELDS_TO_LEMMA:
                 lemma_key = f"{key.split('_')[0]}_lemma"
                 message[lemma_key] = self.nlp.get_lemma(message[key], message['search_language'])
-        except Exception:
-            raise
-
-    def get_field_vectors(self, station):
-        try:
-            for key in FIELDS_TO_VECTOR:
-                vector_key = f"{key.split('_')[0]}_vector"
-                station[vector_key] = pickle.dumps(self.nlp.get_vector(station[key], self.model))
         except Exception:
             raise
 
@@ -114,7 +104,6 @@ class StationProcessor(threading.Thread):
                 self.redis.set(f"{self.entity_type}_{station['station_uuid']}", job_hash)
                 self.validate_text_length(station)
                 self.get_field_lemmas(station)
-                self.get_field_vectors(station)
                 with self.thread_lock:
                     self.complete_queue.put(station)
         except TypeError as err:
