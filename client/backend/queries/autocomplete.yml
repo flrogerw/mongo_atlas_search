@@ -3,7 +3,7 @@
     compound:
       should:
         - autocomplete:
-            query: { query_text }
+            query: {query_text}
             path: title
             tokenOrder:
               sequential
@@ -15,7 +15,7 @@
               maxExpansions:
                 256
         - text:
-            query: { query_text }
+            query: {query_text}
             path: title
             fuzzy:
               maxEdits:
@@ -27,7 +27,7 @@
       minimumShouldMatch: 1
 - $match:
     language:
-      { language }
+      {language}
 - $project:
     _id:
       0
@@ -37,4 +37,4 @@
       $meta:
         searchScore
 - $limit:
-    { max_results }
+    {max_results}

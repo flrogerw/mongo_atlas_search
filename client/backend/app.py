@@ -18,13 +18,12 @@ def update_aps():
     return json.dumps(response)
 
 
-@app.route('/search_as_you_type', methods=["GET"])
-def search_as_you_type():
+@app.route('/autocomplete', methods=["GET"])
+def autocomplete():
     try:
         r = request.args
         search_phrase = r.get('search_phrase') if r.get('search_phrase') else ''
         lang = r.get('lang') if r.get('lang') else 'en'
-        ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
         if len(search_phrase) < 2:
             raise Exception('Search Phrase must be at least 2 characters')
         elif lang not in LANGUAGES:
