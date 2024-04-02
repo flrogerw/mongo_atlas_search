@@ -62,9 +62,8 @@ class SearchClient:
                         search_result.extend(future.result())
                     except Exception:
                         raise
-            # sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            # return sorted_list[:int(max_results)]
-            return search_result
+            sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+            return sorted_list[:int(max_results)]
         except Exception:
             raise
 
@@ -79,14 +78,13 @@ class SearchClient:
                         in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:
-                            search_result.extend(future.result())
+                            search_result.extend(sorted(future.result(), key=lambda x: x['score'], reverse=True)[:int(max_results)])
                         except Exception:
                             raise
             else:
                 search_result = self.do_search(search_phrase, max_results, ent_type, language, query_type)
-
-            sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            return sorted_list[:int(max_results)]
+                search_result.extend(sorted(search_result, key=lambda x: x['score'], reverse=True)[:int(max_results)])
+            return search_result
         except Exception:
             raise
 
