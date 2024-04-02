@@ -30,10 +30,7 @@ def search_as_you_type():
         elif lang not in LANGUAGES:
             raise Exception(f'{lang} is not a supported language')
         else:
-            response = client.search(
-                search_phrase,
-                lang,
-                ent_type)
+            response = client.search_as_you_type(search_phrase, lang)
             return json.dumps(response)
 
     except Exception as err:
