@@ -46,7 +46,7 @@ def search():
         search_phrase = r.get('search_phrase') if r.get('search_phrase') else ''
         lang = r.get('lang') if r.get('lang') else 'en'
         ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
-        max_results = r.get('max_results') if r.get('max_results') else 20
+        max_results = r.get('max_results') if r.get('max_results') else 10
         query_type = r.get('qm') if r.get('qm') else 'b'
 
         if len(search_phrase) < 2:
