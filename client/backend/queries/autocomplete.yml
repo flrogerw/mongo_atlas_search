@@ -13,7 +13,9 @@
               maxExpansions: 256
         - text:
             query: {query_text}
-            path: [title, description]
+            path:
+              - title
+              - description
             fuzzy:
               maxEdits: 1
               prefixLength: 2
