@@ -96,13 +96,13 @@ class SearchClient:
             double_results = {}
             for result in results:
                 double_results.setdefault(result[f"{result['entity_type']}_id"], []).append(result)
-            for id in double_results:
-                if len(double_results[id]) > 1:
-                    x, y = double_results[id]
-                    double_results[x]['score'] += double_results[y]['score']
-                    final_results.append(double_results[x])
+            for i in double_results:
+                if len(double_results[i]) > 1:
+                    lexical, semantic = double_results[i]
+                    lexical['score'] += semantic['score']
+                    final_results.append(lexical)
                 else:
-                    final_results.append(double_results[id][0])
+                    final_results.append(double_results[i][0])
             return final_results
         except Exception:
             raise
