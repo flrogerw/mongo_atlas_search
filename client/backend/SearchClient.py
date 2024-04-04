@@ -34,7 +34,7 @@ class SearchClient:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language, query_type)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
             if len(search_result) > 0:
-                self.merge_records(search_result)
+                search_result = self.merge_records(search_result)
                 self.clean_up_scores(search_result)
             return search_result
         except Exception:
@@ -55,64 +55,60 @@ class SearchClient:
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                 future_result = {
                     executor.submit(self.do_autocomplete, search_phrase, max_results, entity, language): entity for
-                    entity
-                    in ['station']}
+                    entity in ['station']}
                 for future in concurrent.futures.as_completed(future_result):
                     try:
                         search_result.extend(future.result())
                     except Exception:
                         raise
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            return sorted_list[:int(max_results)]
+            return sorted_list[:5]
         except Exception:
             raise
 
-    def search(self, search_phrase, language='en', ent_type='all', max_results=10, query_type='b'):
+    def search(self, search_phrase, language='en', ent_type='all', max_results=20, query_type='b'):
         try:
             search_result = []
             if ent_type == 'all':
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                     future_result = {
                         executor.submit(self.do_search, search_phrase, max_results, entity, language,
-                                        query_type, ): entity for entity
-                        in SEARCHABLE_ENTITIES}
+                                        query_type, ): entity for entity in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:
-                            search_result.extend(future.result()[:int(max_results)])
+                            results = future.result()
+                            sorted_list = sorted(results, key=lambda x: x['score'], reverse=True)
+                            search_result.extend(sorted_list)
                         except Exception:
                             raise
+                    return search_result
             else:
                 result = self.do_search(search_phrase, max_results, ent_type, language, query_type)
-                search_result.extend(result[:int(max_results)])
-
-            return sorted(search_result, key=lambda x: x['score'], reverse=True)
+                sorted_list = sorted(result, key=lambda x: x['score'], reverse=True)
+                return sorted_list
         except Exception:
             raise
 
-    """
-    Merge scores when both semantic and lexical matches appear in the result set.
-    """
-
-    def merge_records(self, results):
+    @staticmethod
+    def merge_records(results):
         try:
+            final_results = []
             double_results = {}
-            max_score = max(result['atlas_score'] for result in results)
-            for c, i in enumerate(results):
-                normalized_score = i['normalized_score'] if hasattr(i, 'normalized_score') else (
-                        i['atlas_score'] / max_score)
-                i['score'] = normalized_score + i['listen_score'] + i['aps_score']
-                entity_id = i[f"{i['entity_type']}_id"]
-                double_results.setdefault(entity_id, []).append(c)
-                if len(double_results[entity_id]) > 1:
-                    x, y = double_results[entity_id]
-                    combined_atlas = (results[x]['atlas_score'] + results[y]['atlas_score'])
-                    normalized_score = combined_atlas / max_score
-                    results[x]['score'] = normalized_score + results[x]['listen_score'] + results[x]['aps_score']
-                    del results[y]
+            for result in results:
+                double_results.setdefault(result[f"{result['entity_type']}_id"], []).append(result)
+            for id in double_results:
+                if len(double_results[id]) > 1:
+                    x, y = double_results[id]
+                    double_results[x]['score'] += double_results[y]['score']
+                    final_results.append(double_results[x])
+                else:
+                    final_results.append(double_results[id][0])
+            return final_results
         except Exception:
             raise
 
-    def clean_up_scores(self, results):
+    @staticmethod
+    def clean_up_scores(results):
         del_keys = ['max_score', 'advanced_popularity', 'listen_score', 'aps_score', 'atlas_score', 'normalized_score']
         for result in results:
             for k in del_keys:

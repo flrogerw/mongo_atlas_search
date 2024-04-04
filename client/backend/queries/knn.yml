@@ -11,16 +11,18 @@
     image_url: 1
     owner: 1
     description: 1
-    finalScore: 1
     advanced_popularity: 1
     atlas_score:
         $meta: vectorSearchScore
     listen_score: 1
-    apsScore: 1
+    aps_score: 1
+    score: 1
 - $addFields:
     listen_score:
       $ifNull:
-        - $listen_score
+        - $divide
+          - $listen_score
+          - 10
         - 0
     advanced_popularity:
       $ifNull:
@@ -30,20 +32,18 @@
       $ifNull:
         - $owner
         - 'Unknown'
-- $addFields:
-    normalized_score:
-      $divide:
-        - $atlas_score
-        - 10
-- $addFields:
     aps_score:
       $divide:
         - $advanced_popularity
         - 200
+    atlas_score:
+      $multiply:
+        - $atlas_score
+        - 0.2
 - $addFields:
     score:
       $add:
-        - $normalized_score
+        - $atlas_score
         - $listen_score
         - $aps_score
 - $set:

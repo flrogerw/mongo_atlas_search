@@ -8,33 +8,22 @@
             tokenOrder:
               sequential
             fuzzy:
-              maxEdits:
-                1
-              prefixLength:
-                2
-              maxExpansions:
-                256
+              maxEdits: 1
+              prefixLength: 2
+              maxExpansions: 256
         - text:
             query: {query_text}
-            path: title
+            path: [title, description]
             fuzzy:
-              maxEdits:
-                1
-              prefixLength:
-                2
-              maxExpansions:
-                256
+              maxEdits: 1
+              prefixLength: 2
+              maxExpansions: 256
       minimumShouldMatch: 1
 - $match:
-    language:
-      {language}
+    language: {language}
 - $project:
-    _id:
-      0
-    title:
-      1
+    _id: 0
+    title: 1
     score:
-      $meta:
-        searchScore
-- $limit:
-    {max_results}
+      $meta: searchScore
+- $limit: {max_results}
