@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 load_dotenv()
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 
-
 app = Flask(__name__)
 client = SearchClient()
 
@@ -16,6 +15,17 @@ client = SearchClient()
 def update_aps():
     response = ''
     return json.dumps(response)
+
+
+@app.route('/amperwave', methods=["POST"])
+def amperwave():
+    try:
+        print(request)
+
+    except Exception as err:
+        print(Response(
+            json.dumps({"message": str(err)}),
+            status=418))
 
 
 @app.route('/autocomplete', methods=["GET"])
@@ -53,7 +63,7 @@ def search():
             raise Exception('Search Phrase must be at least 2 characters')
         elif lang not in LANGUAGES:
             raise Exception(f'{lang} is not a supported language')
-        elif query_type not in ['s','l','b']:
+        elif query_type not in ['s', 'l', 'b']:
             raise Exception(f"{query_type} is not a supported search type of (s)emantic, (l)exical or (b)oth))")
         else:
             response = client.search(
@@ -68,5 +78,7 @@ def search():
             json.dumps({"message": str(err)}),
             status=418,
         )
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)

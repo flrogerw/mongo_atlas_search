@@ -2,6 +2,12 @@
   "mappings": {
     "dynamic": false,
     "fields": {
+      "description": {
+        "type": "string",
+        "indexOptions": "offsets",
+        "store": true,
+        "norms": "include"
+      },
       "title": [
         {
           "type": "autocomplete",
@@ -18,5 +24,14 @@
         }
       ]
     }
-  }
+  },
+  "synonyms": [
+    {
+      "name": "station_synonyms",
+      "source": {
+        "collection": "station_synonyms"
+      },
+      "analyzer": "lucene.standard"
+    }
+  ]
 }

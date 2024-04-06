@@ -2,12 +2,27 @@
   "mappings": {
     "dynamic": false,
     "fields": {
-      "title_lemma": {
-        "type": "string"
-      },
       "description_lemma": {
-        "type": "string"
+        "type": "string",
+        "indexOptions": "offsets",
+        "store": true,
+        "norms": "include"
+      },
+      "title_lemma": {
+        "type": "string",
+        "indexOptions": "offsets",
+        "store": true,
+        "norms": "include"
       }
     }
-  }
+  },
+  "synonyms": [
+    {
+      "name": "<entity type>_synonyms",
+      "source": {
+        "collection": "<entity type>_synonyms"
+      },
+      "analyzer": "lucene.standard"
+    }
+  ]
 }

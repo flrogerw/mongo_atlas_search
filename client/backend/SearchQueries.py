@@ -29,7 +29,7 @@ class SearchQueries:
         try:
             query = self.station.format(max_results=max_results, entity_id_field=f"{ent_type}_id",
                                         ent_type=ent_type, collection=collection, language=language,
-                                        lemma_text=lemma_text)
+                                        lemma_text=lemma_text, synonyms=f"{ent_type}_synonyms")
             query_dict = yaml.safe_load(query)
             return query_dict
         except Exception:
@@ -48,15 +48,16 @@ class SearchQueries:
     def get_lexical_query(self, max_results, ent_type, collection, lemma_text, primary=True):
         try:
             query_yaml = self.lexical.format(max_results=max_results, entity_id_field=f"{ent_type}_id",
-                                             ent_type=ent_type, collection=collection, lemma_text=lemma_text)
+                                             ent_type=ent_type, collection=collection, lemma_text=lemma_text,
+                                             synonyms=f"{ent_type}_synonyms")
             query_dict = yaml.safe_load(query_yaml)
             return [{"$unionWith": {"coll": collection, "pipeline": query_dict}}] if not primary else query_dict
         except Exception:
             raise
 
-    def get_autocomplete_query(self, search_phrase, max_results, language):
+    def get_autocomplete_query(self, search_phrase, max_results, language, ent_type, collection):
         try:
-            query_yaml = self.autocomplete.format(max_results=max_results, language=language, query_text=search_phrase)
+            query_yaml = self.autocomplete.format(max_results=max_results, language=language, query_text=search_phrase, synonyms=f"{ent_type}_synonyms")
             return yaml.safe_load(query_yaml)
         except Exception:
             raise
@@ -65,7 +66,7 @@ class SearchQueries:
         pipeline = []
         collection = ent_type if ent_type == "station" else f"{ent_type}_{language}"
         search_phrase = self.nlp.clean_text(search_phrase).lower()
-        pipeline.extend(self.get_autocomplete_query(search_phrase, max_results, language))
+        pipeline.extend(self.get_autocomplete_query(search_phrase, max_results, language, ent_type, collection))
         return collection, pipeline
 
     def build_query(self, search_phrase, max_results, ent_type, language, query_type):

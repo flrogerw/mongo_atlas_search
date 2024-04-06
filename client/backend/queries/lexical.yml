@@ -33,6 +33,19 @@
             score:
               boost:
                 value: 1.2
+        - text:
+            query: {lemma_text}
+            synonyms: {synonyms}
+            path:
+              - description_lemma
+        - text:
+            query: {lemma_text}
+            synonyms: {synonyms}
+            path:
+              - title_lemma
+            score:
+              boost:
+                value: 1.2
       minimumShouldMatch: 1
 - $project:
     _id: 0
@@ -44,7 +57,6 @@
     atlas_score:
         $meta: searchScore
     listen_score: 1
-    normalized_score: 1
     owner: 1
     aps_score: 1
     score: 1

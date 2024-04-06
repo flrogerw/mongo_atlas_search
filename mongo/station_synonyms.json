@@ -1,0 +1,13 @@
+[{
+  "mappingType": "equivalent",
+  "synonyms": ["new york", "big apple", "gotham city"]
+},
+  {
+  "mappingType": "equivalent",
+  "synonyms": ["portland", "stumptown", "portlandia"]
+},
+{
+  "mappingType": "explicit",
+  "input": ["beer"],
+  "synonyms": ["beer", "brew", "pint"]
+}]

@@ -49,20 +49,21 @@ class SearchClient:
         except Exception:
             raise
 
-    def search_as_you_type(self, search_phrase, language, max_results=10):
+    def search_as_you_type(self, search_phrase, language, ent_type=None, max_results=10):
         try:
             search_result = []
+            searchable_entities = [ent_type] if ent_type else SEARCHABLE_ENTITIES
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                 future_result = {
                     executor.submit(self.do_autocomplete, search_phrase, max_results, entity, language): entity for
-                    entity in ['station']}
+                    entity in searchable_entities}
                 for future in concurrent.futures.as_completed(future_result):
                     try:
                         search_result.extend(future.result())
                     except Exception:
                         raise
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            return sorted_list[:5]
+            return sorted_list[:10]
         except Exception:
             raise
 
@@ -73,7 +74,7 @@ class SearchClient:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                     future_result = {
                         executor.submit(self.do_search, search_phrase, max_results, entity, language,
-                                        query_type, ): entity for entity in SEARCHABLE_ENTITIES}
+                                        query_type): entity for entity in SEARCHABLE_ENTITIES}
                     for future in concurrent.futures.as_completed(future_result):
                         try:
                             results = future.result()
