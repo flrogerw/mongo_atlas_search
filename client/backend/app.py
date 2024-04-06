@@ -34,12 +34,13 @@ def autocomplete():
         r = request.args
         search_phrase = r.get('search_phrase') if r.get('search_phrase') else ''
         lang = r.get('lang') if r.get('lang') else 'en'
+        ent_type = r.get('ent_type') if r.get('ent_type') else None
         if len(search_phrase) < 2:
             raise Exception('Search Phrase must be at least 2 characters')
         elif lang not in LANGUAGES:
             raise Exception(f'{lang} is not a supported language')
         else:
-            response = client.search_as_you_type(search_phrase, lang)
+            response = client.search_as_you_type(search_phrase, lang, ent_type)
             return json.dumps(response)
 
     except Exception as err:
