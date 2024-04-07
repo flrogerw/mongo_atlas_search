@@ -44,6 +44,8 @@ class SearchClient:
         try:
             collection, pipeline = self.queries.build_autocomplete(search_phrase, max_results, ent_type, language)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            if len(search_result) > 0:
+                self.clean_up_scores(search_result)
             self.highlight(search_result, search_phrase)
             return search_result
         except Exception:
@@ -110,7 +112,7 @@ class SearchClient:
 
     @staticmethod
     def clean_up_scores(results):
-        del_keys = ['max_score', 'advanced_popularity', 'listen_score', 'aps_score', 'atlas_score', 'normalized_score']
+        del_keys = ['advanced_popularity', 'listen_score', 'aps_score', 'atlas_score', 'language']
         for result in results:
             for k in del_keys:
                 result.pop(k, None)
