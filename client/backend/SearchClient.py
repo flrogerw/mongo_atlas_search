@@ -63,7 +63,7 @@ class SearchClient:
                     except Exception:
                         raise
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
-            return sorted_list[:10]
+            return sorted_list[:max_results]
         except Exception:
             raise
 

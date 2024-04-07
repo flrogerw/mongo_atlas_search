@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class ListenNotesFetcher:
+class SqlLiteFetcher:
     def __init__(self, file_location):
         self.db = Db(file_location)
 

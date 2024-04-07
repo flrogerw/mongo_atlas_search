@@ -14,6 +14,11 @@
         - text:
             query: {lemma_text}
             path:
+              - tags
+        - text:
+            query: {lemma_text}
+            path:
+              - description_lemma
               - title_lemma
             fuzzy:
               maxEdits: 1
@@ -21,31 +26,16 @@
               maxExpansions: 256
             score:
               boost:
-                value: 2
-        - text:
-            query: {lemma_text}
-            path:
-              - description_lemma
-            fuzzy:
-              maxEdits: 1
-              prefixLength: 2
-              maxExpansions: 256
-            score:
-              boost:
-                value: 1.2
-        - text:
-            query: {lemma_text}
-            synonyms: {synonyms}
-            path:
-              - description_lemma
+                value: .5
         - text:
             query: {lemma_text}
             synonyms: {synonyms}
             path:
               - title_lemma
+              - description_lemma
             score:
               boost:
-                value: 1.2
+                value: 1
       minimumShouldMatch: 1
 - $project:
     _id: 0
@@ -83,6 +73,10 @@
       $divide:
         - $advanced_popularity
         - 200
+    language:
+      $ifNull:
+        - $language
+        - {language}
 - $addFields:
     score:
       $add:
@@ -92,3 +86,5 @@
 - $set:
     entity_type: {ent_type}
 - $limit: {max_results}
+- $match:
+      language: {language}

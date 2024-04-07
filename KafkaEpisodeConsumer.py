@@ -22,7 +22,6 @@ from nlp.StanzaNLP import StanzaNLP
 load_dotenv()
 KAFKA_TOPIC = os.getenv('KAFKA_EPISODE_TOPIC')
 THREAD_COUNT = int(os.getenv('THREAD_COUNT'))
-LANGUAGE_MODEL = os.getenv('LANGUAGE_MODEL')
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 JOB_QUEUE_SIZE = int(os.getenv('JOB_QUEUE_SIZE'))
 DB_USER = os.getenv('DB_USER')

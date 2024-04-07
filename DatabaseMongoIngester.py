@@ -9,7 +9,7 @@ import traceback
 from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
 from logger.Logger import ErrorLogger
-from bson.binary import Binary
+import ast
 
 # Load System ENV VARS
 load_dotenv()
@@ -64,7 +64,10 @@ if __name__ == '__main__':
             total = 0
             for batch in batches:
                 for record in batch: ##  MAKE THIS LOOP THE VECTOR_FIELDS ENVAR
-                    record['description_vector'] = pickle.loads(record['description_vector']).tolist()
+                    if record['tags']:
+                        record['tags'] = ast.literal_eval(record['tags'])
+                    if record['description_vector']:
+                        record['description_vector'] = pickle.loads(record['description_vector']).tolist()
                 send_to_mongo(db, batch, collection)
                 total += len(batch)
                 print("\r" + f"{str(total)} processed", end=' ')

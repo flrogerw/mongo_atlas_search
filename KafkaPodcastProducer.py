@@ -12,7 +12,7 @@ from confluent_kafka import Producer, KafkaError, KafkaException
 # from confluent_avro.schema_registry import HTTPBasicAuth
 from dotenv import load_dotenv
 from sql.PostgresDb import PostgresDb
-from fetchers.ListenNotesFetcher import ListenNotesFetcher
+from fetchers.SqlLiteFetcher import SqlLiteFetcher
 from thread_workers.PodcastProducer import PodcastProducer
 from nlp.StanzaNLP import StanzaNLP
 
@@ -146,7 +146,7 @@ if __name__ == '__main__':
                                 text_processor)
             threads.append(w)
 
-        fetcher = ListenNotesFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
+        fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
         start, end = fetcher.get_records_offset('podcasts', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
         records = fetcher.fetch('podcasts', start, end)
         start_time = datetime.now()

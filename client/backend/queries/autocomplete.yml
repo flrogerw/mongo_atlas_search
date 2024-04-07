@@ -27,13 +27,40 @@
 - $project:
     _id: 0
     title: 1
+    atlas_score:
+      $meta: searchScore
+    advanced_popularity: 1
+    listen_score: 1
+    score: 1
 - $addFields:
+    listen_score:
+      $ifNull:
+        - $divide
+          - $listen_score
+          - 10
+        - 0
+    advanced_popularity:
+      $ifNull:
+        - $advanced_popularity
+        - 0
+    atlas_score:
+      $divide:
+        - $atlas_score
+        - 100
+    aps_score:
+      $divide:
+        - $advanced_popularity
+        - 200
     language:
       $ifNull:
         - $language
         - {language}
+- $addFields:
     score:
-      $meta: searchScore
+      $add:
+        - $atlas_score
+        - $listen_score
+        - $aps_score
 - $match:
     language: {language}
 - $limit: {max_results}

@@ -8,6 +8,10 @@
         "store": true,
         "norms": "include"
       },
+      "tags": {
+        "type": "string",
+        "analyzer": "lucene.keyword"
+      },
       "title": [
         {
           "type": "autocomplete",
