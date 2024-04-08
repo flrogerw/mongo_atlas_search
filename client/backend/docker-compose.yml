@@ -2,10 +2,10 @@ version: '3'
 services:
   backend:
     build:
-      context: backend
+      context: .
     ports:
       - '8000:8000'
     networks:
-      - opensearch-net
+      - atlassearch-net
 networks:
-  opensearch-net:
+  atlassearch-net:
