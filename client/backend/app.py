@@ -1,5 +1,6 @@
 import os
 import json
+from flask_cors import CORS, cross_origin
 from flask import Flask, request, Response
 from SearchClient import SearchClient
 from dotenv import load_dotenv
@@ -8,16 +9,20 @@ load_dotenv()
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 client = SearchClient()
 
 
 @app.route('/update_aps', methods=["POST"])
+@cross_origin()
 def update_aps():
     response = ''
     return json.dumps(response)
 
 
 @app.route('/amperwave', methods=["POST"])
+@cross_origin()
 def amperwave():
     try:
         print(request)
@@ -29,6 +34,7 @@ def amperwave():
 
 
 @app.route('/autocomplete', methods=["GET"])
+@cross_origin()
 def autocomplete():
     try:
         r = request.args
@@ -51,6 +57,7 @@ def autocomplete():
 
 
 @app.route('/search', methods=["GET"])
+@cross_origin()
 def search():
     try:
         r = request.args
