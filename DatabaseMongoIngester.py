@@ -64,8 +64,9 @@ if __name__ == '__main__':
             total = 0
             for batch in batches:
                 for record in batch: ##  MAKE THIS LOOP THE VECTOR_FIELDS ENVAR
-                    if record['tags']:
-                        record['tags'] = ast.literal_eval(record['tags'])
+                    record['tags'] = ast.literal_eval(record['tags']) if record['tags'] else []
+                    record['markets'] = ast.literal_eval(record['markets']) if record['markets'] else []
+                    record['genres'] = ast.literal_eval(record['genres']) if record['genres'] else []
                     if record['description_vector']:
                         record['description_vector'] = pickle.loads(record['description_vector']).tolist()
                 send_to_mongo(db, batch, collection)

@@ -50,6 +50,7 @@
     owner: 1
     aps_score: 1
     score: 1
+    market: 1
 - $addFields:
     listen_score:
       $ifNull:

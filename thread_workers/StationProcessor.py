@@ -76,7 +76,7 @@ class StationProcessor(threading.Thread):
         try:
             for key in FIELDS_TO_LEMMA:
                 lemma_key = f"{key.split('_')[0]}_lemma"
-                message[lemma_key] = self.nlp.get_lemma(message[key], message['search_language'])
+                message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
         except Exception:
             raise
 
@@ -90,7 +90,12 @@ class StationProcessor(threading.Thread):
             "advanced_popularity": 1,
             "title_cleaned": self.nlp.clean_text(job['station_name']),
             "language": job['language'],
-            "search_language": job['search_language'],
+            "category": job['category'],
+            "genres": job['genres'],
+            "tags": job['tags'],
+            "format": job['format'],
+            "markets": job['markets'],
+            "call_sign": job['call_sign'],
             "description_cleaned": self.nlp.clean_text(job['description']),
             "image_url": job['image_url']
         }

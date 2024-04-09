@@ -7,13 +7,18 @@
             path: title
             tokenOrder:
               sequential
+            score:
+              boost:
+                value: 1.2
+        - text:
+            query: {query_text}
+            path:
+              - title
+              - description
             fuzzy:
               maxEdits: 1
               prefixLength: 2
               maxExpansions: 256
-            score:
-              boost:
-                value: 1
         - text:
             query: {query_text}
             synonyms: {synonyms}

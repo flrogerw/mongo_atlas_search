@@ -242,12 +242,14 @@ CREATE TABLE station_purgatory (
     , advanced_popularity                                                       FLOAT                                       NOT NULL DEFAULT 0   -- used for calculating APS
     , title_cleaned                                                             TEXT                                           				-- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
-    , search_language                                                           VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT
     , image_url                                                                 TEXT                                                		-- to OS
     , tags                                                                      TEXT
     , genres                                                                    TEXT
     , format                                                                    TEXT
+    , category                                                                  TEXT
+    , markets                                                                   TEXT
+    , call_sign                                                                 TEXT                                        NOT NULL
     , reason_for_failure                                                        TEXT                                        NOT NULL
     , is_searchable                                                             BOOLEAN                                     NOT NULL
     , PRIMARY KEY (station_purgatory_id)
@@ -278,7 +280,6 @@ CREATE TABLE station_quality (
     , title_cleaned                                                             TEXT                                           				-- to OS
     , title_lemma                                                               TEXT                                		NOT NULL        -- to OS
     , language                                                                  VARCHAR(4)                                  NOT NULL        -- to OS
-    , search_language                                                           VARCHAR(4)                                  NOT NULL        -- to OS
     , description_cleaned                                                       TEXT
     , description_lemma                                                         TEXT                                        NOT NULL        -- to OS
     , description_vector                                                        BYTEA
@@ -287,6 +288,9 @@ CREATE TABLE station_quality (
     , tags                                                                      TEXT
     , genres                                                                    TEXT
     , format                                                                    TEXT
+    , category                                                                  TEXT
+    , markets                                                                   TEXT
+    , call_sign                                                                 TEXT                                        NOT NULL
     , PRIMARY KEY (station_quality_id)
 );
 CREATE UNIQUE INDEX idx_station_quality_station_uuid       						ON station_quality    						USING btree (station_uuid);

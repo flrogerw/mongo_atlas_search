@@ -37,7 +37,6 @@ db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
 # Setup Redis
 redisCli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
 if FLUSH_REDIS_ON_START == 'True':
-    redisCli.select(3)
     redisCli.flushdb()  # Clear hash cache
 
 # Set up Queues
