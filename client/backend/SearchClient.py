@@ -36,6 +36,7 @@ class SearchClient:
             if len(search_result) > 0:
                 search_result = self.merge_records(search_result)
                 self.clean_up_scores(search_result)
+                self.clean_subtitle(search_result)
             return search_result
         except Exception:
             raise
@@ -91,6 +92,14 @@ class SearchClient:
                 return sorted_list
         except Exception:
             raise
+
+    @staticmethod
+    def clean_subtitle(search_results):
+        for result in search_results:
+            if 'sub_title' in result:
+                result['sub_title'] = [x for x in result['sub_title'] if x is not None]
+            if 'sub_title' not in result or len(result['sub_title']) == 0:
+                result['sub_title'] = ['Audacy National']
 
     @staticmethod
     def merge_records(results):

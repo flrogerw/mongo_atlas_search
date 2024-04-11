@@ -8,11 +8,17 @@ from dotenv import load_dotenv
 load_dotenv()
 LANGUAGES = os.getenv('LANGUAGES').split(",")
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_url_path='',
+            static_folder='web')
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 client = SearchClient()
 
+
+@app.route('/web')
+def static_file():
+    return app.send_static_file('index.html')
 
 @app.route('/update_aps', methods=["POST"])
 @cross_origin()

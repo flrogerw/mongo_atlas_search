@@ -93,6 +93,7 @@ class ShowProcessor(threading.Thread):
             "title_cleaned": self.nlp.clean_text(job['name']),
             "description_cleaned": self.nlp.clean_text(job['description']),
             "image_url": job['media_url'],
+            "stations": job['station_list'],
             "tags": str(list(map(lambda w: self.nlp.get_lemma(w.lower(), 'en'), self.nlp.clean_text(job['keywords']).split(','))))
         }
 

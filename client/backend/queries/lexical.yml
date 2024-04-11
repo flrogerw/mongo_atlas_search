@@ -5,16 +5,30 @@
         - phrase:
             path:
               - title_lemma
-              - description_lemma
             query: {lemma_text}
             slop: 5
             score:
               boost:
-                value: 3
+                value: 1.5
+        - text:
+            query: {lemma_text}
+            path:
+              - title_lemma
+            score:
+              boost:
+                value: 1.2
         - text:
             query: {lemma_text}
             path:
               - tags
+            score:
+              boost:
+                value: 1
+        - text:
+            query: {lemma_text}
+            path:
+              - description_lemma
+              - title_lemma
         - text:
             query: {lemma_text}
             path:
@@ -26,16 +40,13 @@
               maxExpansions: 256
             score:
               boost:
-                value: .5
+                value: 1
         - text:
             query: {lemma_text}
             synonyms: {synonyms}
             path:
               - title_lemma
               - description_lemma
-            score:
-              boost:
-                value: 1
       minimumShouldMatch: 1
 - $project:
     _id: 0
@@ -50,7 +61,16 @@
     owner: 1
     aps_score: 1
     score: 1
-    market: 1
+    markets: 1
+    genres: 1
+    stations_list: 1
+    stations: 1
+    sub_title: 1
+- $lookup:
+    from: station
+    localField: stations
+    foreignField: station_id
+    as: stations_list
 - $addFields:
     listen_score:
       $ifNull:
@@ -62,10 +82,6 @@
       $ifNull:
         - $advanced_popularity
         - 0
-    owner:
-      $ifNull:
-        - $owner
-        - 'Unknown'
     atlas_score:
       $divide:
         - $atlas_score
@@ -84,7 +100,31 @@
         - $atlas_score
         - $listen_score
         - $aps_score
+    station:
+      $arrayElemAt:
+        - $stations_list
+        - 0
+    genre:
+      - $ifNull:
+          - $arrayElemAt:
+              - $station.genres
+              - 0
+          - None
 - $set:
+    sub_title:
+      - $owner
+      - $ifNull:
+          - $arrayElemAt:
+              - $station.genres
+              - 0
+          - $arrayElemAt:
+              - $genres
+              - 0
+      - $ifNull:
+          - $station.title
+          - $arrayElemAt:
+              - $markets
+              - 0
     entity_type: {ent_type}
 - $limit: {max_results}
 - $match:

@@ -190,6 +190,7 @@ CREATE TABLE show_purgatory (
     , tags                                                                      TEXT
     , image_url                                                                 TEXT                                                		-- to OS
     , reason_for_failure                                                        TEXT                                        NOT NULL
+    , stations                                                                  TEXT
     , is_searchable                                                             BOOLEAN                                     NOT NULL
     , PRIMARY KEY (show_purgatory_id)
 );
@@ -224,6 +225,7 @@ CREATE TABLE show_quality (
     , description_vector                                                        BYTEA
     , image_url                                                                 TEXT                                                		-- to OS
     , tags                                                                      TEXT
+    , stations                                                                  TEXT
     , is_searchable                                                             BOOLEAN                                     NOT NULL
     , PRIMARY KEY (show_quality_id)
 );
