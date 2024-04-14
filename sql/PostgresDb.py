@@ -39,7 +39,7 @@ class PostgresDb:
         entries_to_return = []
         for entry in response:
             try:
-                query = f"INSERT INTO {entity_type}_ingest (record_hash, {entity_type}_uuid) VALUES ('{entry['record_hash']}','{entry[entity_type + '_uuid']}') RETURNING {entity_type}_ingest_id as {entity_type}_{table_type}_id"
+                query = f"INSERT INTO {entity_type}_ingest (hash_record, hash_title, hash_description, {entity_type}_uuid) VALUES ('{entry['hash_record']}','{entry['hash_title']}','{entry['hash_description']}','{entry[entity_type + '_uuid']}') RETURNING {entity_type}_ingest_id as {entity_type}_{table_type}_id"
                 self.cursor.execute(query)
                 result = self.cursor.fetchone()
                 entry[f"{entity_type}_{table_type}_id"] = result[f"{entity_type}_{table_type}_id"]
@@ -62,14 +62,14 @@ class PostgresDb:
     def append_ingest_ids(self, entity_type, table_type, response):
         try:
             ingest_ids = dict()
-            argument_string = str([(d['record_hash'], d[f"{entity_type}_uuid"]) for d in response]).strip('[]')
+            argument_string = str([(d['hash_record'], d['hash_title'], d['hash_description'], d[f"{entity_type}_uuid"]) for d in response]).strip('[]')
             self.cursor.execute(
-                f"INSERT INTO {entity_type}_ingest (hash_record, {entity_type}_uuid) VALUES {argument_string} RETURNING hash_record,{entity_type}_ingest_id as {entity_type}_{table_type}_id")
+                f"INSERT INTO {entity_type}_ingest (hash_record, hash_title, hash_description, {entity_type}_uuid) VALUES {argument_string} RETURNING hash_record,{entity_type}_ingest_id as {entity_type}_{table_type}_id")
             result_list_of_tuples = (self.cursor.fetchall())
             for x in result_list_of_tuples:
-                ingest_ids[x['record_hash']] = x[f"{entity_type}_{table_type}_id"]
+                ingest_ids[x['hash_record']] = x[f"{entity_type}_{table_type}_id"]
             for r in response:
-                r[f"{entity_type}_{table_type}_id"] = ingest_ids[r['record_hash']]
+                r[f"{entity_type}_{table_type}_id"] = ingest_ids[r['hash_record']]
             return response
         except UniqueViolation:
             raise ValueError(response, entity_type, table_type)
@@ -93,8 +93,11 @@ class PostgresDb:
 
     def update_one(self, table_name, col, new_val, field, identifier):
         try:
-            query = f"UPDATE {table_name} SET {col} = '{new_val}'  WHERE {field} = {identifier};"
+            identifier = identifier.replace("'", "''")
+            query = f"UPDATE {table_name} SET {col}={new_val} WHERE {field} = '{identifier}';"
+            print(query)
             self.cursor.execute(query)
+            self.connection.commit()
         except Exception:
             print(traceback.format_exc())
             pass

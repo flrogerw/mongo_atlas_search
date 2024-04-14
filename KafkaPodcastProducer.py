@@ -92,7 +92,7 @@ def flush_queues(logger):
 
         if purgatory_list:
             purgatory_inserts = logger.append_ingest_ids('podcast', 'purgatory', purgatory_list)
-            for pi in purgatory_inserts: del pi['podcast_uuid'], pi['record_hash']  # Thank Ray for this cluster
+            for pi in purgatory_inserts: del pi['podcast_uuid'], pi['hash_record'], pi['hash_title'], pi['hash_description']  # Thank Ray for this cluster
             logger.insert_many('podcast_purgatory', purgatory_inserts)
         if quarantine_list:
             logger.insert_many('podcast_quarantine', quarantine_list)
@@ -103,7 +103,7 @@ def flush_queues(logger):
         response, entity_type, table_type = res.args
         inserts = db.error_retry(entity_type, table_type, response)
         if len(inserts) > 0:
-            for ins in inserts: del ins['podcast_uuid'], ins['record_hash']  # Thank Ray for this cluster
+            for ins in inserts: del pi['podcast_uuid'], pi['hash_record'], pi['hash_title'], pi['hash_description']  # Thank Ray for this cluster
             logger.insert_many(f"{entity_type}_{table_type}", inserts)
         pass
     except Exception:
@@ -146,9 +146,10 @@ if __name__ == '__main__':
                                 text_processor)
             threads.append(w)
 
-        fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        start, end = fetcher.get_records_offset('podcasts', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
-        records = fetcher.fetch('podcasts', start, end)
+        # fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
+        fetcher = SqlLiteFetcher(f'/Volumes/ExternalDrive/{LISTEN_NOTES_DB_FILE}')
+        start, end = fetcher.get_records_offset('podcast_ru', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
+        records = fetcher.fetch('podcast_ru', start, end)
         start_time = datetime.now()
         for record in records:
             total_record_count += 1

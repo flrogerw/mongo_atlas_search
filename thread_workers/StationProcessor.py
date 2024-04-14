@@ -42,6 +42,9 @@ class StationProcessor(threading.Thread):
         self.job_queue = job_queue
         self.redis = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.entity_type = 'station'
+
+        self.db = Db('archives/aps_20240406.tsv')
+
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -119,14 +122,17 @@ class StationProcessor(threading.Thread):
                 self.validate_text_length(station)
                 self.get_field_lemmas(station)
                 # self.get_field_vectors(station)
+                station["station_quality_id"] = job['station_id']
                 with self.thread_lock:
                     self.complete_queue.put(station)
         except TypeError as err:
             # print(traceback.format_exc())
+            station["station_purgatory_id"] = job['station_id']
             self.logger.log_to_purgatory(station, str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj.args[0])
         except ValueError as err:
+            station["station_purgatory_id"] = job['station_id']
             self.logger.log_to_purgatory(station, str(err))
         except Exception as err:
             self.logger.log_to_errors(station['station_uuid"'], str(err), traceback.format_exc(), 1)

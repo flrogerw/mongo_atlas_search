@@ -102,24 +102,26 @@ class PodcastProducer(threading.Thread):
                 "advanced_popularity": 0}
 
             message["language"] = self.nlp.get_language(self.nlp(message['description_cleaned']))
-            message["record_hash"] = hashlib.md5(str(message).encode()).hexdigest()
+            message["hash_record"] = hashlib.md5(str(message).encode()).hexdigest()
+            message["hash_title"] = hashlib.md5(message['title_cleaned'].encode()).hexdigest()
+            message["hash_description"] = hashlib.md5(message['description_cleaned'].encode()).hexdigest()
 
             # Check for Previous Instance in Redis
-            previous_record_hash = self.redis_cli.get(f"{self.entity_type}_{message['podcast_uuid']}")
+            previous_hash_record = self.redis_cli.get(f"{self.entity_type}_{message['podcast_uuid']}")
 
             # Check for supported Languages
             if message['language'] not in LANGUAGES:
                 raise TypeError(f"Language not supported: {message['language']}.")
             # Check for Exact Duplicates using hash of the message dictionary and UUID5 of Rss URL.
-            elif previous_record_hash == message['record_hash']:
-                raise TypeError(f"File {message['rss_url']} is a duplicate to: {previous_record_hash}.")
+            elif previous_hash_record == message['hash_record']:
+                raise TypeError(f"File {message['rss_url']} is a duplicate to: {previous_hash_record}.")
             # Same URL Different Body. title says "DELETED"??
-            elif previous_record_hash:
+            elif previous_hash_record:
                 raise QuarantineError({"podcast_uuid": message['podcast_uuid'], "duplicate_file_name": record['rss'],
-                                       "original_record_hash": previous_record_hash})
+                                       "original_hash_record": previous_hash_record})
             else:
                 self.validate_minimums(message)
-                self.redis_cli.set(f"{self.entity_type}_{message['podcast_uuid']}", message['record_hash'])
+                self.redis_cli.set(f"{self.entity_type}_{message['podcast_uuid']}", message['hash_record'])
                 message['image_url'] = record['artwork_thumbnail']
                 # Podcast(**message)
                 self.drop_on_kafka(message, self.topic)
