@@ -99,7 +99,7 @@ def put_episodes(msgs):
         producer.begin_transaction()
         producer.poll(0)
         for msg in msgs:
-            if msg['episode_count'] > 0:
+            if int(msg['episode_count']) > 0:
                 episode_message = {
                     "rss_url": msg['original_url'],
                     "language": msg['language'],
@@ -148,7 +148,7 @@ def flush_queues(logger):
         if quality_list:
             quality_inserts = logger.append_ingest_ids('podcast', 'quality', quality_list)
             put_episodes(quality_inserts)
-            for qi in quality_inserts: del qi['podcast_uuid'], qi['record_hash']  # Thank Ray for this cluster
+            for qi in quality_inserts: del qi['podcast_uuid'], qi['hash_record'], qi['hash_title'], qi['hash_description']  # Thank Ray for this cluster
             logger.insert_many('podcast_quality', quality_inserts)
         if errors_list:
             logger.insert_many('error_log', errors_list)
@@ -183,7 +183,7 @@ def monitor(id, stop):
         # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'PIPELINE_ERROR',
-                          "entity_type": 2,
+                          "entity_type": 510,
                           "error": str(err),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass

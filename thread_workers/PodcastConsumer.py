@@ -74,7 +74,7 @@ class PodcastConsumer(threading.Thread):
             rss_message = {
                 'upload_bucket': UPLOAD_BUCKET,
                 'file_path': self.get_path(message['podcast_uuid']),
-                'file_name': f"{message['record_hash']}.rss",
+                'file_name': f"{message['hash_record']}.rss",
                 'url': message['original_url'],
                 'content_type': 'rss',
                 'field': 'rss_url',
@@ -83,7 +83,7 @@ class PodcastConsumer(threading.Thread):
             }
             with self.thread_lock:
                 self.upload_q.put(rss_message)
-            file_path = f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{self.get_path(message['podcast_uuid'])}/{message['record_hash']}.rss"
+            file_path = f"https://{UPLOAD_BUCKET}.s3.amazonaws.com/{self.get_path(message['podcast_uuid'])}/{message['hash_record']}.rss"
         else:
             file_path = f"URL returned a {rss_head.status_code} status code"
         return file_path
@@ -128,13 +128,11 @@ class PodcastConsumer(threading.Thread):
             message["rss_url"] = self.get_rss_path(message)
             self.get_field_vectors(message)
             self.get_field_lemmas(message)
-
             # ADD validation schema HERE
 
             # Extra Processing goes Here
             if message['language'] in GRADABLE_LANGUAGES:
                 message['readability'] = Grader.get_readability(message[READABILITY_FIELD])
-
             with self.thread_lock:
                 self.quality_q.put(message)
         except Exception as err:

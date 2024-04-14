@@ -146,8 +146,7 @@ if __name__ == '__main__':
                                 text_processor)
             threads.append(w)
 
-        # fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        fetcher = SqlLiteFetcher(f'/Volumes/ExternalDrive/{LISTEN_NOTES_DB_FILE}')
+        fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
         start, end = fetcher.get_records_offset('podcast_ru', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
         records = fetcher.fetch('podcast_ru', start, end)
         start_time = datetime.now()
