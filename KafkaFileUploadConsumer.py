@@ -105,7 +105,7 @@ def monitor(id, stop):
         print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'UPLOAD PIPELINE_ERROR',
-                          "entity_type": 1,
+                          "entity_type": 510,
                           "error": str(e),
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         # print(traceback.format_exc())
         with thread_lock:
             errors_q.put({"entity_identifier": 'FILE UPLOAD PIPELINE_ERROR',
-                          "entity_type": 1,
+                          "entity_type": 510,
                           "error": err,
                           "stack_trace": traceback.format_exc().replace("\x00", "\uFFFD")})
             pass
