@@ -84,4 +84,4 @@ class FileUploadConsumer(threading.Thread):
             self.transfer_file(kafka_message)
         except Exception as err:
             # print(traceback.format_exc())
-            self.logger.log_to_errors(kafka_message['url'], str(err), traceback.format_exc(), 1)
+            self.logger.log_to_errors(kafka_message['url'], str(err), traceback.format_exc(), 510)
