@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Dataflow Demo</title>
+  </head>
+  <body>
+    <div id="test1"></div>
+    <div id="test2"></div>
+    <div id="test3"></div>
+  </body>
+  <script src="../src/gauge.html.js"></script>
+  <script>
+    const firstGauge = new Gauge("test1", {
+      max: 200,
+      displaySlider: false,
+      transitionType: "cubic-bezier(.17,.67,.4,1.01)",
+      transitionTimeSeconds: 0.7,
+    })
+
+    const secondGauge = new Gauge("test2", {
+      max: 1000,
+      displaySlider: false,
+      transitionType: "cubic-bezier(.17,.67,.4,1.01)",
+      transitionTimeSeconds: 0.7,
+    })
+
+    const thirdGauge = new Gauge("test3", {
+      max: 4000,
+      displaySlider: false,
+      transitionType: "cubic-bezier(.17,.67,.4,1.01)",
+      transitionTimeSeconds: 0.7,
+    })
+
+    const firstId = setInterval(() => {
+      const number = Math.floor(Math.random() * (firstGauge.options.max + 1));
+      firstGauge.setValue(number);
+    }, 1232);
+
+    const secondId = setInterval(() => {
+      const number = Math.floor(Math.random() * (secondGauge.options.max + 1));
+      secondGauge.setValue(number);
+    }, 2438);
+
+    const thirdId = setInterval(() => {
+      const number = Math.floor(Math.random() * (thirdGauge.options.max + 1));
+      thirdGauge.setValue(number);
+    }, 750);
+  </script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: row;
+      gap: 25px;
+    }
+  </style>
+</html>

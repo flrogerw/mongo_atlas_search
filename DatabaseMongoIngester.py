@@ -64,7 +64,7 @@ if __name__ == '__main__':
             for batch in batches:
                 for record in batch: ##  MAKE THIS LOOP THE VECTOR_FIELDS ENVAR
                     record['tags'] = ast.literal_eval(record['tags']) if record['tags'] else []
-                    record['markets'] = ast.literal_eval(record['markets']) if record['markets'] else []
+                    #record['markets'] = ast.literal_eval(record['markets']) if record['markets'] else []
                     record['genres'] = ast.literal_eval(record['genres']) if record['genres'] else []
                     #record['stations'] = list(ast.literal_eval(record['stations'])) if 'stations' in record else []
                     if record['description_vector']:

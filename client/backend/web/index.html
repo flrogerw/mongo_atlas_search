@@ -1,37 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Adjustable Settings Demo</title>
-  </head>
-  <body>
-    <div id="test1"></div>
-    <div id="test2"></div>
-    <div id="test3"></div>
-  </body>
-  <script src="./gauge-js/src/gauge.html.js"></script>
-  <script>
-    const firstGauge = new Gauge("test1", {
-      max: 350,
-      step: 5,
-    });
-
-    const secondGauge = new Gauge("test2", {
-      max: 50
-    });
-
-    const thirdGauge = new Gauge("test3", {
-      max: 125,
-      step: 1
-    });
-  </script>
-  <style>
+<head>
+    <title>Audacy Search Weights</title>
+    <style>
     body {
-      display: flex;
-      flex-direction: row;
-      gap: 25px;
     }
-  </style>
+  .gauge_wrapper {
+    width: 200px;
+    float: left;
+    padding: 10px;
+  }
+  .gauge_label {
+    text-align: center;
+    width: 100%;
+    font-weight: bold;
+
+  }
+  .section_div {
+    padding: 5px;
+    display:inline-block;
+    border: 1px solid grey;
+    border-radius: 10px;
+    margin: 10px;
+    height: 350px;
+    position: relative;
+  }
+
+  .fuzzy_section_div {
+    padding: 5px;
+    border: 1px solid grey;
+    border-radius: 10px;
+    display:inline-block;
+    width: 880px;
+    margin: 10px;
+    height: 350px;
+  }
+  .description {
+    padding-top: 5px;
+    height: 50px;
+    overflow: scroll;
+  }
+  h3 {
+    margin-left: 10px;
+  }
+  .summary {
+    width:400px;
+  }
+
+
+    </style>
+</head>
+<body>
+<h2>LEXICAL / TYPE AHEAD</h2>
+<div class="section_div">
+    <h3>PHRASE</h3>
+    <div class="summary">The PHRASE operator performs search for documents containing an ordered sequence of terms.</div>
+    <div class="gauge_wrapper">
+        <div id="lexical_phrase_slope"></div>
+        <div class="gauge_label">PHRASE SLOPE</div>
+        <div class="description">Allowable distance between words in the query phrase. Lower value allows less
+            positional distance between the words and greater value allows more reorganization of the words and more
+            distance between the words to satisfy the query. The default is 0, meaning that words must be exactly in the
+            same position as the query in order to be considered a match. Exact matches are scored higher.
+        </div>
+    </div>
+    <div class="gauge_wrapper">
+        <div id="lexical_phrase_boost"></div>
+        <div class="gauge_label">PHRASE BOOST</div>
+        <div class="description">Multiply the result score by the given number.</div>
+    </div>
+</div>
+<div class="section_div">
+    <h3>TEXT / TAGS</h3>
+    <div class="summary">The TEXT operator performs a full-text search. Only exact matches on the field are returned for TAGS.</div>
+    <div class="gauge_wrapper">
+        <div id="lexical_title_boost"></div>
+        <div class="gauge_label">TITLE BOOST</div>
+        <div class="description">Multiply the result score by the given number.</div>
+    </div>
+    <div class="gauge_wrapper">
+        <div id="lexical_description_boost"></div>
+        <div class="gauge_label">DESCRIPTION BOOST</div>
+        <div class="description">Multiply the result score by the given number.</div>
+    </div>
+    <div class="gauge_wrapper">
+        <div id="lexical_tags_boost"></div>
+        <div class="gauge_label">TAGS BOOST</div>
+        <div class="description">Multiply the result score by the given number.</div>
+    </div>
+</div>
+<br style="clear:left">
+<div class="fuzzy_section_div">
+    <h3>FUZZY</h3>
+    <div class="summary">Find strings which are similar to the search term or terms.</div>
+    <div class="gauge_wrapper">
+        <div id="lexical_fuzzy_max_edits"></div>
+        <div class="gauge_label">MAXIMUM EDITS</div>
+        <div class="description">Maximum number of single-character edits required to match the specified search term.
+            Value can be 1 or
+            2.
+        </div>
+    </div>
+    <div class="gauge_wrapper">
+        <div id="lexical_fuzzy_prefix_length"></div>
+        <div class="gauge_label">PREFIX LENGTH</div>
+        <div class="description">Number of characters at the beginning of each term in the result that must exactly
+            match.
+        </div>
+    </div>
+    <div>
+        <div class="gauge_wrapper">
+            <div id="lexical_fuzzy_max_expansions"></div>
+            <div class="gauge_label">MAXIMUM EXPANSIONS</div>
+            <div class="description">The maximum number of variations to generate and search for. This limit applies on
+                a per-token
+                basis.
+            </div>
+        </div>
+        <div class="gauge_wrapper">
+            <div id="lexical_fuzzy_boost"></div>
+            <div class="gauge_label">FUZZY MATCH BOOST</div>
+            <div class="description">Multiply the result score by the given number.</div>
+        </div>
+    </div>
+</div>
+<h2>SEMANTIC</h2>
+<div class="section_div">
+    <h3>KNOWN NEAREST NEIGHBOR</h3>
+    <div class="summary">The text operator performs a full-text search using the analyzer that you specify in the index
+        configuration.
+    </div>
+    <div class="gauge_wrapper">
+        <div id="knn_candidates"></div>
+        <div class="gauge_label">K DISTANCE</div>
+        <div class="description">Number of nearest neighbors to use during the search. Value must be less than or equal
+            to (<=) 10000. You can't specify a number less than the number of documents to return (limit).
+            We recommend that you specify a number higher than the number of documents to return (limit) to increase
+            accuracy although this might impact latency. For example, we recommend a ratio of ten to twenty nearest
+            neighbors for a limit of only one document. This overrequest pattern is the recommended way to trade off
+            latency and recall in your ANN searches, and we recommend tuning this on your specific dataset.
+        </div>
+    </div>
+    <div class="gauge_wrapper">
+        <div id="knn_limit"></div>
+        <div class="gauge_label">KNN LIMIT</div>
+        <div class="description">Number of documents to return in the results. Value can't exceed the value of K DISTANCE.</div>
+    </div>
+    <div class="gauge_wrapper">
+            <div id="knn_boost"></div>
+            <div class="gauge_label">KNN BOOST</div>
+            <div class="description">Multiply the result score by the given number.</div>
+        </div>
+</div>
+</body>
+<script src="./gauge-js/src/gauge.html.js"></script>
+<script>
+    const lexical_phrase_slope = new Gauge("lexical_phrase_slope", {
+      max: 10,
+      step: 1,
+      initialValue: 3
+    });
+
+    const lexical_phrase_boost = new Gauge("lexical_phrase_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 1
+    });
+
+    const lexical_title_boost = new Gauge("lexical_title_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 1.2
+    });
+    const lexical_description_boost = new Gauge("lexical_description_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 1
+    });
+    const lexical_tag_boost = new Gauge("lexical_tags_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 1
+    });
+     const lexical_fuzzy_max_edits = new Gauge("lexical_fuzzy_max_edits", {
+      max: 2,
+      min: 1,
+      step: 1,
+      initialValue: 1
+    });
+
+    const lexical_fuzzy_prefix_length = new Gauge("lexical_fuzzy_prefix_length", {
+      max: 5,
+      min: 0,
+      step: 1,
+      initialValue: 0
+    });
+    const lexical_fuzzy_max_expansions = new Gauge("lexical_fuzzy_max_expansions", {
+      max: 500,
+      min: 1,
+      step: 1,
+      initialValue: 256
+    });
+    const lexical_fuzzy_boost = new Gauge("lexical_fuzzy_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 1
+    });
+
+    const knn_candidates = new Gauge("knn_candidates", {
+      max: 10000,
+      min: 1,
+      step: 1,
+      initialValue: 200
+    });
+    const knn_limit = new Gauge("knn_limit", {
+      max: 10000,
+      step: 1,
+      initialValue: 200
+    });
+    const knn_boost = new Gauge("knn_boost", {
+      max: 5,
+      step: 0.1,
+      initialValue: 0.2
+    });
+
+
+</script>
 </html>
