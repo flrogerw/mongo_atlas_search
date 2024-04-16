@@ -54,7 +54,7 @@ class Gauge {
       this.currentValue = this.options.initialValue;
     }
     
-    const id = crypto.randomUUID();
+    const id =  Math.floor(Math.random() * 1000000000);
     const emptyDiv = document.getElementById(emptyDivId);
 
     // Dumbass check #1
