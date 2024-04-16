@@ -6,17 +6,23 @@
             path:
               - title_lemma
             query: {lemma_text}
-            slop: 5
+            slop: 1
             score:
               boost:
                 value: 1.5
         - text:
             query: {lemma_text}
+            synonyms: {synonyms}
             path:
               - title_lemma
             score:
               boost:
                 value: 1.2
+        - text:
+            query: {lemma_text}
+            synonyms: {synonyms}
+            path:
+              - description_lemma
         - text:
             query: {lemma_text}
             path:
@@ -29,11 +35,6 @@
             path:
               - description_lemma
               - title_lemma
-        - text:
-            query: {lemma_text}
-            path:
-              - description_lemma
-              - title_lemma
             fuzzy:
               maxEdits: 1
               prefixLength: 2
@@ -41,12 +42,6 @@
             score:
               boost:
                 value: 1
-        - text:
-            query: {lemma_text}
-            synonyms: {synonyms}
-            path:
-              - title_lemma
-              - description_lemma
       minimumShouldMatch: 1
 - $project:
     _id: 0
@@ -90,10 +85,6 @@
       $divide:
         - $advanced_popularity
         - 200
-    language:
-      $ifNull:
-        - $language
-        - {language}
 - $addFields:
     score:
       $add:
