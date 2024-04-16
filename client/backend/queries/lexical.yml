@@ -85,6 +85,10 @@
       $divide:
         - $advanced_popularity
         - 200
+    language:
+      $ifNull:
+        - $language
+        - {language}
 - $addFields:
     score:
       $add:
