@@ -47,6 +47,7 @@
     advanced_popularity: 1
     listen_score: 1
     score: 1
+    language: 1
 - $addFields:
     listen_score:
       $ifNull:

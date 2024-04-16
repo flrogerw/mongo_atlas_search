@@ -55,7 +55,7 @@ class SearchClient:
     def search_as_you_type(self, search_phrase, language, ent_type=None, max_results=7):
         try:
             search_result = []
-            searchable_entities = [ent_type] if ent_type else SEARCHABLE_ENTITIES
+            searchable_entities = [ent_type] if ent_type and ent_type != 'all' else SEARCHABLE_ENTITIES
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                 future_result = {
                     executor.submit(self.do_autocomplete, search_phrase, max_results, entity, language): entity for
