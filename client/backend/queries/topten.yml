@@ -12,5 +12,10 @@
     stations_list: 1
     stations: 1
     sub_title: 1
+- $lookup:
+    from: station
+    localField: stations
+    foreignField: station_id
+    as: stations_list
 - $set:
     score: $advanced_popularity

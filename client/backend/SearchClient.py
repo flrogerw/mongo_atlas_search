@@ -74,7 +74,6 @@ class SearchClient:
                         search_result.extend(future.result())
                     except Exception:
                         raise
-            print(search_result)
             sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
 
             return sorted_list[:10]
