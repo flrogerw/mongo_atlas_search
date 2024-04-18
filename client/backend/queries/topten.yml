@@ -1,0 +1,16 @@
+- $sort:
+      advanced_popularity: -1
+- $project:
+    _id: 0
+    title: 1
+    image_url: 1
+    description: 1
+    advanced_popularity: 1
+    score: 1
+    markets: 1
+    genres: 1
+    stations_list: 1
+    stations: 1
+    sub_title: 1
+- $set:
+    score: $advanced_popularity

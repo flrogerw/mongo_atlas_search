@@ -29,6 +29,16 @@ class SearchClient:
             replacement = lambda match: re.sub(r'([^\s]+)', r'[m]\1[/m]', match.group())
             result['title'] = re.sub("|".join(map(re.escape, keywords)), replacement, result['title'], flags=re.I)
 
+    def do_topten(self, ent_type):
+        try:
+            collection, pipeline = self.queries.build_top_ten(ent_type)
+            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            if len(search_result) > 0:
+                self.clean_up_scores(search_result)
+            return search_result
+        except Exception:
+            raise
+
     def do_search(self, search_phrase, max_results, ent_type, language, query_type):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language, query_type)
@@ -49,6 +59,25 @@ class SearchClient:
                 self.clean_up_scores(search_result)
             self.highlight(search_result, search_phrase)
             return search_result
+        except Exception:
+            raise
+
+    def top_ten(self):
+        try:
+            search_result = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
+                future_result = {
+                    executor.submit(self.do_topten, entity): entity for entity in ['show','station'] #SEARCHABLE_ENTITIES
+                }
+                for future in concurrent.futures.as_completed(future_result):
+                    try:
+                        search_result.extend(future.result())
+                    except Exception:
+                        raise
+            print(search_result)
+            sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+
+            return sorted_list[:10]
         except Exception:
             raise
 

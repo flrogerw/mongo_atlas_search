@@ -61,6 +61,18 @@ def autocomplete():
             status=418,
         )
 
+@app.route('/topten', methods=["GET"])
+@cross_origin()
+def topten():
+    try:
+        response = client.top_ten()
+        return json.dumps(response)
+    except Exception as err:
+        return Response(
+            json.dumps({"message": str(err)}),
+            status=418,
+        )
+
 
 @app.route('/search', methods=["GET"])
 @cross_origin()

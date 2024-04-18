@@ -18,6 +18,7 @@ class SearchQueries:
         self.knn = self.load_query('queries/knn.yml')
         self.lexical = self.load_query('queries/lexical.yml')
         self.autocomplete = self.load_query('queries/autocomplete.yml')
+        self.topten = self.load_query('queries/topten.yml')
 
     @staticmethod
     def load_query(query_file):
@@ -53,6 +54,12 @@ class SearchQueries:
             return yaml.safe_load(query_yaml)
         except Exception:
             raise
+
+    def build_top_ten(self, ent_type, language='en'):
+        pipeline = []
+        collection = ent_type if ent_type in SHARED_INDEXES else f"{ent_type}_{language}"
+        pipeline.extend(yaml.safe_load(self.topten))
+        return collection, pipeline
 
     def build_autocomplete(self, search_phrase, max_results, ent_type, language):
         pipeline = []

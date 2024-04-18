@@ -62,6 +62,7 @@
     stations: 1
     sub_title: 1
     language: 1
+    tags: 1
 - $lookup:
     from: station
     localField: stations
