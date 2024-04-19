@@ -66,9 +66,10 @@ class SearchClient:
     def top_ten(self, ent_type, language):
         try:
             search_result = []
+            searchable_entities = [ent_type] if ent_type and ent_type != 'all' else SEARCHABLE_ENTITIES
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                 future_result = {
-                    executor.submit(self.do_topten, entity, language): entity for entity in SEARCHABLE_ENTITIES
+                    executor.submit(self.do_topten, entity, language): entity for entity in searchable_entities
                 }
                 for future in concurrent.futures.as_completed(future_result):
                     try:
