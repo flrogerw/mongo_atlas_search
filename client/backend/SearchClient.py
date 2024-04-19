@@ -74,7 +74,7 @@ class SearchClient:
                 for future in concurrent.futures.as_completed(future_result):
                     try:
                         sorted_list = sorted(future.result(), key=lambda x: x['score'], reverse=True)
-                        search_result.extend(sorted_list[:10])
+                        search_result.extend(sorted_list[:20])
                     except Exception:
                         raise
             #sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
