@@ -19,3 +19,4 @@
     as: stations_list
 - $set:
     score: $advanced_popularity
+    entity_type: {ent_type}

@@ -58,7 +58,8 @@ class SearchQueries:
     def build_top_ten(self, ent_type, language='en'):
         pipeline = []
         collection = ent_type if ent_type in SHARED_INDEXES else f"{ent_type}_{language}"
-        pipeline.extend(yaml.safe_load(self.topten))
+        query_yaml = self.topten.format(ent_type=ent_type)
+        pipeline.extend(yaml.safe_load(query_yaml))
         return collection, pipeline
 
     def build_autocomplete(self, search_phrase, max_results, ent_type, language):
