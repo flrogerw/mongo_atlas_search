@@ -17,6 +17,44 @@
     localField: stations
     foreignField: station_id
     as: stations_list
+
+- $addFields:
+    listen_score:
+      $ifNull:
+        - $divide
+            - $listen_score
+            - 10
+        - 0
+    advanced_popularity:
+      $ifNull:
+        - $advanced_popularity
+        - 0
+    station:
+      $arrayElemAt:
+        - $stations_list
+        - 0
+    genre:
+      - $ifNull:
+          - $arrayElemAt:
+              - $genres
+              - 0
+          - $arrayElemAt:
+              - $station.genres
+              - 0
 - $set:
-    score: $advanced_popularity
+    sub_title:
+      - $owner
+      - $ifNull:
+          - $arrayElemAt:
+              - $station.genres
+              - 0
+          - $arrayElemAt:
+              - $genres
+              - 0
+      - $ifNull:
+          - $station.title
+          - $arrayElemAt:
+              - $markets
+              - 0
     entity_type: {ent_type}
+    score: $advanced_popularity

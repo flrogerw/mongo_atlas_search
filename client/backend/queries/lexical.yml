@@ -104,9 +104,12 @@
     genre:
       - $ifNull:
           - $arrayElemAt:
+              - $genres
+              - 0
+          - $arrayElemAt:
               - $station.genres
               - 0
-          - None
+
 - $set:
     sub_title:
       - $owner

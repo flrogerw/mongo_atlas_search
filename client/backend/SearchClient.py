@@ -35,6 +35,7 @@ class SearchClient:
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
             if len(search_result) > 0:
                 self.clean_up_scores(search_result)
+                self.clean_subtitle(search_result)
             return search_result
         except Exception:
             raise
