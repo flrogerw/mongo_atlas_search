@@ -59,13 +59,14 @@ if __name__ == '__main__':
             entity, languages, has_ingest_table, collection = job
             SEARCH_FIELDS = os.getenv(f"{entity.upper()}_SEARCH_FIELDS")
             db.connect()
-            batches = db.select_mongo_batches(f"{entity}_quality", SEARCH_FIELDS, LIMIT, entity, has_ingest_table, languages)
+            # batches = db.select_mongo_batches(f"{entity}_quality", SEARCH_FIELDS, LIMIT, entity, has_ingest_table, languages)
+            batches = db.select_mongo_batches("podcast_quality", SEARCH_FIELDS, LIMIT, 'podcast', True, ['en','es','ru'])
             total = 0
-            for batch in batches:
+            for batch in [batches]:
                 for record in batch: ##  MAKE THIS LOOP THE VECTOR_FIELDS ENVAR
-                    record['tags'] = ast.literal_eval(record['tags']) if record['tags'] else []
+                    #record['tags'] = ast.literal_eval(record['tags']) if record['tags'] else []
                     #record['markets'] = ast.literal_eval(record['markets']) if record['markets'] else []
-                    record['genres'] = ast.literal_eval(record['genres']) if record['genres'] else []
+                    #record['genres'] = ast.literal_eval(record['genres']) if record['genres'] else []
                     #record['stations'] = list(ast.literal_eval(record['stations'])) if 'stations' in record else []
                     if record['description_vector']:
                         record['description_vector'] = pickle.loads(record['description_vector']).tolist()

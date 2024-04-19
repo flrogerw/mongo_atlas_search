@@ -57,8 +57,8 @@ class SearchQueries:
 
     def build_top_ten(self, ent_type, language='en'):
         pipeline = []
-        collection = ent_type if ent_type in SHARED_INDEXES else f"{ent_type}_{language}"
-        query_yaml = self.topten.format(ent_type=ent_type)
+        collection = ent_type if ent_type != 'podcast' else 'top_ten_podcasts'
+        query_yaml = self.topten.format(ent_type=ent_type, language=language)
         pipeline.extend(yaml.safe_load(query_yaml))
         return collection, pipeline
 

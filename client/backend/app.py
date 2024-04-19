@@ -65,7 +65,10 @@ def autocomplete():
 @cross_origin()
 def topten():
     try:
-        response = client.top_ten()
+        r = request.args
+        lang = r.get('lang') if r.get('lang') else 'en'
+        ent_type = r.get('ent_type') if r.get('ent_type') else 'all'
+        response = client.top_ten(ent_type, lang)
         return json.dumps(response)
     except Exception as err:
         return Response(

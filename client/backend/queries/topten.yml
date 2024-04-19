@@ -5,6 +5,7 @@
     title: 1
     image_url: 1
     description: 1
+    language: 1
     advanced_popularity: 1
     score: 1
     markets: 1
@@ -19,6 +20,10 @@
     as: stations_list
 
 - $addFields:
+    language:
+      $ifNull:
+        - $language
+        - {language}
     listen_score:
       $ifNull:
         - $divide
@@ -58,3 +63,5 @@
               - 0
     entity_type: {ent_type}
     score: $advanced_popularity
+- $match:
+      language: {language}
