@@ -147,8 +147,8 @@ if __name__ == '__main__':
             threads.append(w)
 
         fetcher = SqlLiteFetcher(f'archives/{LISTEN_NOTES_DB_FILE}')
-        start, end = fetcher.get_records_offset('podcast_ru', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
-        records = fetcher.fetch('podcast_ru', start, end)
+        start, end = fetcher.get_records_offset('podcasts', SERVER_CLUSTER_SIZE, CLUSTER_SERVER_ID)
+        records = fetcher.fetch('podcasts', start, end)
         start_time = datetime.now()
         for record in records:
             total_record_count += 1
