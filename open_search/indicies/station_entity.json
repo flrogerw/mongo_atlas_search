@@ -1,0 +1,54 @@
+{
+    "mappings": {
+        "properties": {
+            "uuid": {
+                "type": "keyword",
+                "index": true
+            },
+            "title": {
+                "type": "text",
+                "index": false
+            },
+            "title_lemma": {
+                "type": "text",
+                "index": true
+            },
+            "description": {
+                "type": "text",
+                "index": false
+            },
+            "description_lemma": {
+                "type": "text",
+                "index": true
+            },
+            "vector": {
+                "type": "knn_vector",
+                "dimension": 384,
+                "method": {
+                    "name": "hnsw",
+                    "engine": "lucene"
+                }
+            },
+            "is_explicit": {
+                "type": "boolean",
+                "index": true
+            },
+            "advanced_popularity": {
+                "type": "float",
+                "index": false
+            },
+            "image_url": {
+                "type": "text",
+                "index": false
+            }
+        }
+    },
+    "settings": {
+        "index": {
+            "knn": true,
+            "number_of_replicas": 2,
+            "number_of_shards": 4,
+            "refresh_interval": "60s"
+        }
+    }
+}

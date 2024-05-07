@@ -50,10 +50,14 @@ class SearchQueries:
 
     def get_autocomplete_query(self, search_phrase, max_results, language, ent_type, collection):
         try:
-            query_yaml = self.autocomplete.format(max_results=max_results, language=language, query_text=search_phrase, synonyms=f"{ent_type}_synonyms")
+            query_yaml = self.autocomplete.format(max_results=max_results, language=language, query_text=search_phrase,
+                                                  synonyms=f"{ent_type}_synonyms")
             return yaml.safe_load(query_yaml)
         except Exception:
             raise
+
+    def build_tuning(self, search_phrase, max_results, ent_type, language):
+        search_phrase = self.nlp.clean_text(search_phrase).lower()
 
     def build_top_ten(self, ent_type, language='en'):
         pipeline = []
@@ -85,7 +89,8 @@ class SearchQueries:
                 if query_type in ['b', 'l']:
                     primary = True if query_type == 'l' else False
                     lemma_text = self.nlp.get_lemma(search_phrase, language)
-                    pipeline.extend(self.get_lexical_query(max_results, ent_type, collection, lemma_text, language, primary))
+                    pipeline.extend(
+                        self.get_lexical_query(max_results, ent_type, collection, lemma_text, language, primary))
             return collection, pipeline
         except Exception:
             raise

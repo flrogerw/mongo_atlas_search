@@ -29,6 +29,18 @@ class SearchClient:
             replacement = lambda match: re.sub(r'([^\s]+)', r'[m]\1[/m]', match.group())
             result['title'] = re.sub("|".join(map(re.escape, keywords)), replacement, result['title'], flags=re.I)
 
+    def do_tuning(self, search_phrase, max_results, ent_type, language):
+        try:
+            collection, pipeline = self.queries.build_tuning(search_phrase, max_results, ent_type, language)
+            search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
+            if len(search_result) > 0:
+                search_result = self.merge_records(search_result)
+                self.clean_up_scores(search_result)
+                self.clean_subtitle(search_result)
+            return search_result
+        except Exception:
+            raise
+
     def do_topten(self, ent_type, language):
         try:
             collection, pipeline = self.queries.build_top_ten(ent_type, language)
@@ -40,7 +52,7 @@ class SearchClient:
         except Exception:
             raise
 
-    def do_search(self, search_phrase, max_results, ent_type, language, query_type):
+    def do_search(self, search_phrase, ent_type, max_results, language, query_type='all'):
         try:
             collection, pipeline = self.queries.build_query(search_phrase, max_results, ent_type, language, query_type)
             search_result = list(self.client[ATLAS_DB][collection].aggregate(pipeline))
@@ -77,7 +89,7 @@ class SearchClient:
                         search_result.extend(sorted_list[:20])
                     except Exception:
                         raise
-            #sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+            # sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
             return search_result
         except Exception:
             raise
@@ -89,6 +101,24 @@ class SearchClient:
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
                 future_result = {
                     executor.submit(self.do_autocomplete, search_phrase, max_results, entity, language): entity for
+                    entity in searchable_entities}
+                for future in concurrent.futures.as_completed(future_result):
+                    try:
+                        search_result.extend(future.result())
+                    except Exception:
+                        raise
+            sorted_list = sorted(search_result, key=lambda x: x['score'], reverse=True)
+            return sorted_list[:max_results]
+        except Exception:
+            raise
+
+    def tuning(self, params, max_results=20):
+        try:
+            search_result = []
+            searchable_entities = [params['ent_type']] if params['ent_type'] and params['ent_type'] != 'all' else SEARCHABLE_ENTITIES
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(SEARCHABLE_ENTITIES)) as executor:
+                future_result = {
+                    executor.submit(self.do_tuning, params['search_phrase'], entity, max_results, params['language']): entity for
                     entity in searchable_entities}
                 for future in concurrent.futures.as_completed(future_result):
                     try:

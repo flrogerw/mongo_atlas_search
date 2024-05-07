@@ -61,6 +61,18 @@ def autocomplete():
             status=418,
         )
 
+@app.route('/tuning', methods=["GET"])
+@cross_origin()
+def tuning():
+    try:
+        response = client.tuning(request.args)
+        return json.dumps(response)
+    except Exception as err:
+        return Response(
+            json.dumps({"message": str(err)}),
+            status=418,
+        )
+
 @app.route('/topten', methods=["GET"])
 @cross_origin()
 def topten():

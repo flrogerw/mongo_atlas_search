@@ -1,0 +1,100 @@
+{
+  "mappings": {
+    "properties": {
+      "podcast_id": {
+        "type": "integer",
+        "index": false
+      },
+      "title": {
+        "type": "text",
+        "index": true,
+        "analyzer": "autocomplete",
+        "search_analyzer": "search_autocomplete"
+      },
+      "title_lemma": {
+        "type": "text",
+        "index": true,
+        "search_analyzer": "synonym_analyzer"
+      },
+      "description": {
+        "type": "text",
+        "index": false
+      },
+      "description_lemma": {
+        "type": "text",
+        "index": true,
+        "search_analyzer": "synonym_analyzer"
+      },
+      "description_vector": {
+        "type": "knn_vector",
+        "dimension": 384,
+        "method": {
+          "name": "hnsw",
+          "engine": "lucene"
+        }
+      },
+      "owner": {
+        "type": "text",
+        "index": true
+      },
+      "is_deleted": {
+        "type": "boolean",
+        "index": true
+      },
+      "is_explicit": {
+        "type": "boolean",
+        "index": true
+      },
+      "publisher": {
+        "type": "text",
+        "index": true
+      },
+      "image_url": {
+        "type": "text",
+        "index": false
+      }
+    }
+  },
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "autocomplete": {
+          "tokenizer": "autocomplete",
+          "filter": [
+            "lowercase"
+          ]
+        },
+        "search_autocomplete": {
+          "tokenizer": "lowercase",
+          "filter": [
+            "synonym_filter"
+          ]
+        },
+        "synonym_analyzer": {
+          "type": "custom",
+          "tokenizer": "lowercase",
+          "filter": [
+            "synonym_filter"
+          ]
+        }
+      },
+      "filter": {
+        "synonym_filter": {
+          "type": "synonym",
+          "synonyms_path": "analyzers/F122667370",
+          "updateable": true
+        }
+      },
+      "tokenizer": {
+        "autocomplete": {
+          "type": "edge_ngram",
+          "min_gram": 1,
+          "max_gram": 10,
+          "token_chars": [
+            "letter"
+          ]
+        }
+      }
+    }
+  }
+}

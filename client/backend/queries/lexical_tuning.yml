@@ -10,7 +10,7 @@
             slop: 1
             score:
               boost:
-                value: 1.5
+                value: {phrase_boost}
         - text:
             query: {lemma_text}
             synonyms: {synonyms}
@@ -18,7 +18,7 @@
               - title_lemma
             score:
               boost:
-                value: 1.2
+                value: {title_boost}
         - text:
             query: {lemma_text}
             synonyms: {synonyms}
@@ -30,19 +30,19 @@
               - tags
             score:
               boost:
-                value: 1
+                value: {tags_boost}
         - text:
             query: {lemma_text}
             path:
               - description_lemma
               - title_lemma
             fuzzy:
-              maxEdits: 1
-              prefixLength: 2
-              maxExpansions: 256
+              maxEdits: {max_edits}
+              prefixLength: {prefix_length}
+              maxExpansions: {max_expansions}
             score:
               boost:
-                value: 1
+                value: {fuzzy_match_boost}
       minimumShouldMatch: 1
 - $project:
     _id: 0
@@ -74,7 +74,7 @@
       $ifNull:
         - $divide
             - $listen_score
-            - 10
+            - {listen_score}
         - 0
     advanced_popularity:
       $ifNull:
@@ -83,11 +83,11 @@
     atlas_score:
       $divide:
         - $atlas_score
-        - 100
+        - {atlas_score}
     aps_score:
       $divide:
         - $advanced_popularity
-        - 200
+        - {aps_score}
     language:
       $ifNull:
         - $language
@@ -110,7 +110,6 @@
           - $arrayElemAt:
               - $station.genres
               - 0
-
 - $set:
     sub_title:
       - $owner
