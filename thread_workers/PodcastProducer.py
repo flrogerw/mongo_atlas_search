@@ -96,11 +96,13 @@ class PodcastProducer(threading.Thread):
                 "title_cleaned": self.nlp.clean_text(record['title']),
                 "episode_count": record['episode_count'],
                 "readability": 0,
+                "genres": '',
+                "tags": '',
+                "language": record['language'],
                 "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))
                 if record['listen_score_global_rank'] else 0,
                 "description_selected": 410,
                 "advanced_popularity": 0}
-
 
             message["hash_record"] = hashlib.md5(str(message).encode()).hexdigest()
             message["hash_title"] = hashlib.md5(message['title_cleaned'].encode()).hexdigest()

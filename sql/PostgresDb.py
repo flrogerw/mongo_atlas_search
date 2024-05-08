@@ -62,7 +62,9 @@ class PostgresDb:
     def append_ingest_ids(self, entity_type, table_type, response):
         try:
             ingest_ids = dict()
-            argument_string = str([(d['hash_record'], d['hash_title'], d['hash_description'], d[f"{entity_type}_uuid"]) for d in response]).strip('[]')
+            argument_string = str(
+                [(d['hash_record'], d['hash_title'], d['hash_description'], d[f"{entity_type}_uuid"]) for d in
+                 response]).strip('[]')
             self.cursor.execute(
                 f"INSERT INTO {entity_type}_ingest (hash_record, hash_title, hash_description, {entity_type}_uuid) VALUES {argument_string} RETURNING hash_record,{entity_type}_ingest_id as {entity_type}_{table_type}_id")
             result_list_of_tuples = (self.cursor.fetchall())
@@ -166,6 +168,7 @@ class PostgresDb:
             if has_ingest_table:
                 join_statement = f"JOIN {entity}_ingest as pi ON pi.{entity}_ingest_id = {table_name}.{table_name}_id"
             query = f"SELECT {columns} FROM {table_name} {join_statement}  WHERE {table_name}.language IN ({str(languages)[1:-1]});"
+
             def _batches():
                 with \
                         self.connection.cursor(name='process-cursor',
