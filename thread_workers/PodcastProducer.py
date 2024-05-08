@@ -101,10 +101,13 @@ class PodcastProducer(threading.Thread):
                 "description_selected": 410,
                 "advanced_popularity": 0}
 
-            message["language"] = self.nlp.get_language(self.nlp(message['description_cleaned']))
+
             message["hash_record"] = hashlib.md5(str(message).encode()).hexdigest()
             message["hash_title"] = hashlib.md5(message['title_cleaned'].encode()).hexdigest()
             message["hash_description"] = hashlib.md5(message['description_cleaned'].encode()).hexdigest()
+
+            self.validate_minimums(message)
+            message["language"] = self.nlp.get_language(self.nlp(message['description_cleaned']))
 
             # Check for Previous Instance in Redis
             previous_hash_record = self.redis_cli.get(f"{self.entity_type}_{message['podcast_uuid']}")
@@ -120,7 +123,6 @@ class PodcastProducer(threading.Thread):
                 raise QuarantineError({"podcast_uuid": message['podcast_uuid'], "duplicate_file_name": record['rss'],
                                        "original_hash_record": previous_hash_record})
             else:
-                self.validate_minimums(message)
                 self.redis_cli.set(f"{self.entity_type}_{message['podcast_uuid']}", message['hash_record'])
                 message['image_url'] = record['artwork_thumbnail']
                 # Podcast(**message)
