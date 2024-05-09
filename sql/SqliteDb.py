@@ -115,6 +115,20 @@ class Db:
         finally:
             db_connection.close()
 
+    def select_listenotes_pagination(self, table_name, cols, start, end):
+        try:
+            db_connection = self.get_connection()
+            cur = db_connection.cursor()
+            columns = ', '.join(cols)
+            cur.execute("SELECT t1. *, group_concat(t3.name) as genres FROM podcasts t1 JOIN podcast_genres t2 ON t1.podcast_id = t2.podcast_id JOIN genres t3 ON t2.genre_id = t3.id WHERE t1.rowid BETWEEN %d and %d GROUP BY t1.podcast_id" % (start, end))
+            # return self.cur.fetchall()
+            return [dict(row) for row in cur.fetchall()]
+        except Error:
+            print(traceback.format_exc())
+            raise
+        finally:
+            db_connection.close()
+
     def select_pagination(self, table_name, cols, start, end):
         try:
             db_connection = self.get_connection()

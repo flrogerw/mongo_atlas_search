@@ -96,7 +96,7 @@ class PodcastProducer(threading.Thread):
                 "title_cleaned": self.nlp.clean_text(record['title']),
                 "episode_count": record['episode_count'],
                 "readability": 0,
-                "genres": '',
+                "genres": record['genres'],
                 "tags": '',
                 "language": record['language'],
                 "listen_score_global": float(record['listen_score_global_rank'].replace('%', 'e-2'))

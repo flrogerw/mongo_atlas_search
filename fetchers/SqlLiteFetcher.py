@@ -11,7 +11,10 @@ class SqlLiteFetcher:
     def fetch(self, table_name, start, end):
         try:
             columns = ["*"]
-            rows = self.db.select_pagination(table_name, columns, start, end)
+            # rows = self.db.select_pagination(table_name, columns, start, end)
+            # Listen Notes specific.  Need to break out to separate fetcher.
+            rows = self.db.select_listenotes_pagination(table_name, columns, start, end)
+
             return rows
         except Exception:
             raise
