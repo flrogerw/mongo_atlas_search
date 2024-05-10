@@ -92,15 +92,17 @@ def flush_queues(logger):
 
 def monitor(id, stop):
     try:
+        total_completed = 0
         db = PostgresDb(DB_USER, DB_PASS, DB_DATABASE, DB_HOST, DB_SCHEMA)
         start_time = datetime.now()
         while True:
             time.sleep(10)
+            total_completed += (update_q.qsize() + errors_q.qsize())
             flush_queues(db)
             if stop():
                 break
             elapsed_time = datetime.now() - start_time
-            print(f'Elapsed Time: {elapsed_time} Current Jobs Queue: {jobs_q.qsize()}')
+            print(f'Completed: {total_completed} Elapsed Time: {elapsed_time} Current Jobs Queue: {jobs_q.qsize()}')
     except Exception as e:
         print(traceback.format_exc())
         with thread_lock:
