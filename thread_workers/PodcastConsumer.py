@@ -124,7 +124,7 @@ class PodcastConsumer(threading.Thread):
 
     def process(self, message):
         try:
-            message['image_url'] = self.get_image_path(message['image_url'], message['podcast_uuid'])
+            # message['image_url'] = self.get_image_path(message['image_url'], message['podcast_uuid'])
             message["rss_url"] = self.get_rss_path(message)
             self.get_field_vectors(message)
             self.get_field_lemmas(message)
