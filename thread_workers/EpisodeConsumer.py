@@ -7,53 +7,74 @@ import traceback
 import requests
 import hashlib
 import redis
-from nlp.Grader import Grader
+from bs4 import BeautifulSoup
+from dateutil import parser
 from dotenv import load_dotenv
+from pydantic import ValidationError
+from nlp.Grader import Grader
 from logger.Logger import ErrorLogger
 from schemas.validation import Episode
 from Errors import QuarantineError
-from dateutil import parser
-from bs4 import BeautifulSoup
+from typing import Dict, Any, Optional
 
-# Load System ENV VARS
+# Load environment variables
 load_dotenv()
-READABILITY_FIELD = os.getenv('FIELD_FOR_READABILITY')
-GRADABLE_LANGUAGES = os.getenv('GRADABLE_LANGUAGES').split(",")
-FIELDS_TO_LEMMA = os.getenv('FIELDS_TO_LEMMA').split(",")
-FIELDS_TO_VECTOR = os.getenv('EPISODE_FIELDS_TO_VECTOR').split(",")
-MIN_DESCRIPTION_LENGTH = int(os.getenv('MIN_PODCAST_DESC_LENGTH'))
-MIN_TITLE_LENGTH = int(os.getenv('MIN_PODCAST_TITLE_LENGTH'))
-REDIS_HOST = os.getenv('REDIS_HOST')
-UUID_NAMESPACE = os.getenv('UUID_NAMESPACE')
-TRUE_BOOL = os.getenv('TRUE_BOOL').split(",")
-FALSE_BOOL = os.getenv('FALSE_BOOL').split(",")
+READABILITY_FIELD: str = os.getenv('FIELD_FOR_READABILITY', '')
+GRADABLE_LANGUAGES: list = os.getenv('GRADABLE_LANGUAGES', "").split(",")
+FIELDS_TO_LEMMA: list = os.getenv('FIELDS_TO_LEMMA', "").split(",")
+FIELDS_TO_VECTOR: list = os.getenv('EPISODE_FIELDS_TO_VECTOR', "").split(",")
+MIN_DESCRIPTION_LENGTH: int = int(os.getenv('MIN_PODCAST_DESC_LENGTH', 10))
+MIN_TITLE_LENGTH: int = int(os.getenv('MIN_PODCAST_TITLE_LENGTH', 3))
+REDIS_HOST: str = os.getenv('REDIS_HOST', 'localhost')
+UUID_NAMESPACE: str = os.getenv('UUID_NAMESPACE', 'default-namespace')
+TRUE_BOOL: set = set(os.getenv('TRUE_BOOL', "true,yes,1").split(","))
+FALSE_BOOL: set = set(os.getenv('FALSE_BOOL', "false,no,0").split(","))
 
 
 class EpisodeConsumer(threading.Thread):
-    def __init__(self,
-                 jobs_q,
-                 quality_q,
-                 errors_q,
-                 purgatory_q,
-                 quarantine_q,
-                 thread_lock,
-                 nlp,
-                 model,
-                 *args,
-                 **kwargs):
+    """
+    A consumer thread for processing podcast episode data from an RSS feed.
+    This class pulls messages from a queue, validates, processes, and enriches them before storing.
+
+    Args:
+        jobs_q (queue.Queue): Queue holding incoming jobs to be processed.
+        quality_q (queue.Queue): Queue to store validated and processed episodes.
+        errors_q (queue.Queue): Queue to store errors encountered during processing.
+        purgatory_q (queue.Queue): Queue for temporarily held data with potential issues.
+        quarantine_q (queue.Queue): Queue for storing quarantined episodes (duplicates, violations).
+        thread_lock (threading.Lock): Thread lock for safe logging operations.
+        nlp: NLP model for text processing (lemmatization, vectorization).
+        model: Machine learning model for text vector extraction.
+    """
+
+    def __init__(
+        self,
+        jobs_q: queue.Queue,
+        quality_q: queue.Queue,
+        errors_q: queue.Queue,
+        purgatory_q: queue.Queue,
+        quarantine_q: queue.Queue,
+        thread_lock: threading.Lock,
+        nlp,
+        model,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
         self.nlp = nlp
-        self.thread_lock = thread_lock
-        self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.model = model
         self.job_queue = jobs_q
         self.quality_q = quality_q
         self.thread_lock = thread_lock
+        self.logger = ErrorLogger(thread_lock, errors_q, purgatory_q, quarantine_q)
         self.redis_cli = redis.Redis(host=REDIS_HOST, port=6379, charset="utf-8", decode_responses=True)
         self.namespace = uuid.uuid5(uuid.NAMESPACE_DNS, UUID_NAMESPACE)
         self.entity_type = 'episode'
-        super().__init__(*args, **kwargs)
 
-    def run(self):
+    def run(self) -> None:
+        """
+        Continuously process tasks from the job queue until the queue is empty.
+        """
         while True:
             try:
                 task = self.job_queue.get(timeout=30)
@@ -62,130 +83,148 @@ class EpisodeConsumer(threading.Thread):
                 return
 
     @staticmethod
-    def get_from_web(file_path):
-        try:
-            rss = requests.get(file_path, timeout=2.0)
-            # return rss.text.encode()
-            return rss.text
-        except Exception:
-            raise
+    def fetch_rss(file_path: str) -> str:
+        """
+        Fetches and returns RSS feed content as a string.
 
-    def validate_minimums(self, msg):
-        try:
-            description_len = len(msg['description_cleaned'].split(' '))
-            title_len = len(msg['title_cleaned'].split(' '))
-            if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
-                raise TypeError(
-                    f"Minimum length(s) not met: title {title_len}:{MIN_TITLE_LENGTH}, description {description_len}:{MIN_DESCRIPTION_LENGTH}.")
-        except Exception:
-            raise
+        Args:
+            file_path (str): URL or path to the RSS feed.
 
-    def get_field_lemmas(self, message):
-        try:
-            for key in FIELDS_TO_LEMMA:
-                lemma_key = f"{key.split('_')[0]}_lemma"
-                message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
-        except Exception:
-            raise
+        Returns:
+            str: The RSS feed content.
 
-    def get_field_vectors(self, kafka_message):
+        Raises:
+            RuntimeError: If fetching the RSS feed fails.
+        """
         try:
-            for key in FIELDS_TO_VECTOR:
-                vector_key = f"{key.split('_')[0]}_vector"
-                kafka_message[vector_key] = pickle.dumps(self.nlp.get_vector(kafka_message[key], self.model))
-        except Exception:
-            raise
+            response = requests.get(file_path, timeout=2.0)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch RSS: {e}")
 
-    def to_bool(self, string_bool, default):
-        if string_bool is True or string_bool.lower() in TRUE_BOOL:
+    def validate_minimums(self, msg: Dict[str, Any]) -> None:
+        """
+        Ensures episode title and description meet minimum length requirements.
+
+        Args:
+            msg (Dict[str, Any]): The episode data dictionary.
+
+        Raises:
+            ValueError: If the title or description does not meet the minimum length.
+        """
+        description_len = len(msg['description_cleaned'].split())
+        title_len = len(msg['title_cleaned'].split())
+
+        if description_len < MIN_DESCRIPTION_LENGTH or title_len < MIN_TITLE_LENGTH:
+            raise ValueError(
+                f"Minimum lengths not met: title {title_len}/{MIN_TITLE_LENGTH}, "
+                f"description {description_len}/{MIN_DESCRIPTION_LENGTH}."
+            )
+
+    def extract_lemmas(self, message: Dict[str, Any]) -> None:
+        """
+        Extracts lemmas for configured fields using NLP processing.
+
+        Args:
+            message (Dict[str, Any]): The episode data dictionary.
+        """
+        for key in FIELDS_TO_LEMMA:
+            lemma_key = f"{key.split('_')[0]}_lemma"
+            message[lemma_key] = self.nlp.get_lemma(message[key], message['language'])
+
+    def extract_vectors(self, kafka_message: Dict[str, Any]) -> None:
+        """
+        Extracts vector embeddings for configured fields using NLP model.
+
+        Args:
+            kafka_message (Dict[str, Any]): The episode data dictionary.
+        """
+        for key in FIELDS_TO_VECTOR:
+            vector_key = f"{key.split('_')[0]}_vector"
+            kafka_message[vector_key] = pickle.dumps(self.nlp.get_vector(kafka_message[key], self.model))
+
+    def to_bool(self, value: str, default: bool) -> bool:
+        """
+        Converts string representations of boolean values to actual boolean values.
+
+        Args:
+            value (str): String representation of a boolean value.
+            default (bool): Default boolean value if conversion fails.
+
+        Returns:
+            bool: Converted boolean value.
+        """
+        if isinstance(value, bool):
+            return value
+        value = value.lower()
+        if value in TRUE_BOOL:
             return True
-        elif string_bool is False or string_bool.lower() in FALSE_BOOL:
+        elif value in FALSE_BOOL:
             return False
-        else:
-            return string_bool
+        return default
 
-    def get_guid(self, guid_str):
+    def get_guid(self, guid_str: str) -> str:
+        """
+        Generates a UUID if the given string is not already a valid UUID.
+
+        Args:
+            guid_str (str): The input string to be converted into a UUID.
+
+        Returns:
+            str: A valid UUID string.
+        """
         try:
             uuid.UUID(str(guid_str))
             return guid_str
         except ValueError:
             return str(uuid.uuid5(self.namespace, guid_str))
 
-    def get_message(self, item, kafka_message):
-        try:
-            if hasattr(item.guid, 'get_text'):
-                episode_uuid = self.get_guid(str(item.guid.get_text()))
-            else:
-                episode_uuid = str(uuid.uuid5(self.namespace, item.enclosure.get('url')))
+    def process(self, kafka_message: Dict[str, Any]) -> None:
+        """
+        Processes an episode message, validates it, and extracts necessary data.
 
-            message = {
-                "episode_uuid": episode_uuid,
-                "episode_url": item.enclosure.get('url'),
-                "podcast_id": kafka_message['podcast_id'],
-                "duration": int(item.enclosure.get('length')) if item.enclosure.get('length') else 0,
-                "file_type": item.enclosure.get('type'),
-                "language": kafka_message['language'],
-                "is_explicit": self.to_bool(item.explicit.get_text(),
-                                            kafka_message['is_explicit']) if item.explicit else kafka_message[
-                    'is_explicit'],
-                "publisher": item.author.get_text() if item.author else kafka_message['publisher'],
-                "image_url": kafka_message['image_url'],
-                "description_cleaned": self.nlp.clean_text(
-                    item.description.get_text()) if item.description else '',
-                "title_cleaned": self.nlp.clean_text(
-                    item.title.get_text()) if item.title else '',
-                "readability": 0,
-                "description_selected": 410,
-                "advanced_popularity": 0,
-                "index_status": 310,
-                "publish_date": int(
-                    parser.parse(item.pubDate.get_text()).timestamp()) if item.pubDate else None
-            }
-            message['record_hash'] = hashlib.md5(str(message).encode()).hexdigest()
-            return message
-        except Exception:
-            raise
+        Args:
+            kafka_message (Dict[str, Any]): The episode data dictionary.
 
-    def process(self, kafka_message):
+        Raises:
+            ValueError: If the episode message contains invalid data.
+            QuarantineError: If a duplicate episode is detected.
+            Exception: Logs errors encountered during processing.
+        """
         try:
-            rss = self.get_from_web(kafka_message['rss_url'])
-            root = BeautifulSoup(rss, features="xml")  # More forgiving that lxml
+            rss_content = self.fetch_rss(kafka_message['rss_url'])
+            root = BeautifulSoup(rss_content, features="xml")
+
             for item in root.findAll("item"):
-                episode_message = self.get_message(item, kafka_message)
+                episode_message = self.extract_episode_data(item, kafka_message)
+                self.validate_minimums(episode_message)
 
-                # self.validate_minimums(episode_message)
+                redis_key = f"{self.entity_type}_{episode_message['episode_uuid']}"
+                previous_episode_hash = self.redis_cli.get(redis_key)
 
-                # Check for Previous Instance in Redis
-                previous_episode_hash = self.redis_cli.get(f"{self.entity_type}_{episode_message['episode_uuid']}")
-                # Check for Exact Duplicates using hash of entire record string and podcast_uuid.
                 if previous_episode_hash == episode_message['episode_uuid']:
-                    raise TypeError(
-                        f"File {episode_message['episode_url']} is a duplicate to: {previous_episode_hash}.")
-                # Same Body Different podcast_uuid. title says "DELETED"??
+                    raise ValueError(f"Duplicate episode detected: {episode_message['episode_url']}.")
                 elif previous_episode_hash:
-                    raise QuarantineError({"episode_uuid": episode_message['episode_uuid'],
-                                           "duplicate_file_name": episode_message['episode_url'],
-                                           "original_episode_hash": previous_episode_hash})
-                # Set entry in Redis
+                    raise QuarantineError({
+                        "episode_uuid": episode_message['episode_uuid'],
+                        "duplicate_file_name": episode_message['episode_url'],
+                        "original_episode_hash": previous_episode_hash
+                    })
                 else:
-                    self.redis_cli.set(f"{self.entity_type}_{episode_message['episode_uuid']}",
-                                       episode_message['record_hash'])
-                    # Extra Processing goes Here
-                    if episode_message['language'] in GRADABLE_LANGUAGES and len(
-                            episode_message[READABILITY_FIELD]) > 5:
-                        episode_message['readability'] = Grader.get_readability(episode_message[READABILITY_FIELD])
-                    self.get_field_vectors(episode_message)
-                    self.get_field_lemmas(episode_message)
+                    self.redis_cli.set(redis_key, episode_message['record_hash'])
 
-                    with self.thread_lock:
-                        self.quality_q.put(episode_message)
+                if episode_message['language'] in GRADABLE_LANGUAGES and len(episode_message.get(READABILITY_FIELD, "")) > 5:
+                    episode_message['readability'] = Grader.get_readability(episode_message[READABILITY_FIELD])
 
-        except TypeError as err:
-            # print(traceback.format_exc())
-            self.logger.log_to_purgatory(episode_message, str(err))
+                self.extract_vectors(episode_message)
+                self.extract_lemmas(episode_message)
+
+                with self.thread_lock:
+                    self.quality_q.put(episode_message)
+        except (ValueError, ValidationError) as err:
+            self.logger.log_to_purgatory(kafka_message.get('rss_url', 'Unknown RSS'), str(err))
         except QuarantineError as quarantine_obj:
             self.logger.log_to_quarantine(quarantine_obj.args[0])
-        except ValueError as err:
-            self.logger.log_to_purgatory(episode_message, str(err))
         except Exception as err:
-            self.logger.log_to_errors(kafka_message['rss_url'], str(err), traceback.format_exc(), 520)
+            self.logger.log_to_errors(kafka_message.get('rss_url', 'Unknown RSS'), str(err), traceback.format_exc(), 520)
