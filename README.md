@@ -33,8 +33,8 @@ The system is built to process large datasets from CSV files and databases, util
 
 1. Clone the repository:
    ```sh
-   git clone <repository-url>
-   cd <repository-folder>
+   git clone git@github.com:flrogerw/mongo_atlas_search.git
+   cd mongo_atlas_search
    ```
 2. Install dependencies:
    ```sh
@@ -78,10 +78,17 @@ python StationIngester.py
 python ShowIngester.py
 ```
 
+### Running the Podcast Consumer
+
+```sh
+python KafkaPodcastConsumer.py <SERVER_CLUSTER_SIZE> <CLUSTER_SERVER_ID>
+```
+
+
 ### Running the Podcast Producer
 
 ```sh
-python podcast_producer.py <SERVER_CLUSTER_SIZE> <CLUSTER_SERVER_ID>
+python KafkaPodcastProducer.py <SERVER_CLUSTER_SIZE> <CLUSTER_SERVER_ID>
 ```
 
 Replace `<SERVER_CLUSTER_SIZE>` and `<CLUSTER_SERVER_ID>` with appropriate values.
